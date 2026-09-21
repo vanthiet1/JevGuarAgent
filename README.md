@@ -272,6 +272,11 @@ JOG_STABILITY_THRESHOLD=7.5
 ```
 
 #### 3. Hướng dẫn chi tiết từng bước lấy API Key từ OpenRouter.ai:
+
+> [!TIP]
+> **⚡ Đường dẫn nhanh lấy API Key OpenRouter trong 30 giây:**  
+> 👉 Truy cập trực tiếp: **[https://openrouter.ai/settings/keys](https://openrouter.ai/settings/keys)**  
+> *(Chỉ cần đăng nhập bằng Google/GitHub ➔ Bấm **"Create Key"** ➔ Copy chuỗi `sk-or-v1-...` dán vào `.env` là hoàn tất!)*
 1. **Truy cập trang chủ:** Mở trình duyệt và truy cập [https://openrouter.ai/](https://openrouter.ai/).
 2. **Đăng ký / Đăng nhập:**
    - Bấm vào nút **Sign In** (hoặc **Sign Up**) ở góc trên cùng bên phải.
@@ -365,46 +370,64 @@ guar check code "src/lib/db.ts"
 
 ---
 
-## 📂 5. Cấu Trúc Thư Mục Dự Án
+## 📂 5. Cấu Trúc Thư Mục Dự Án Thực Tế (Real-World Project Structure)
+
+Trong một dự án thực tế thông thường (ví dụ: dự án `wedding-manager` hoặc `my-project`), thư mục clone **`JevGuarAgent/`** sẽ **nằm cùng cấp với thư mục `.agents/`** tại thư mục gốc của dự án như sau:
 
 ```text
-JevGuarAgent/
-├── .agents/                    # Cấu hình Antigravity IDE mẫu
+my-project/ (hoặc wedding-manager/)           <-- 📁 Thư mục gốc của dự án thực tế bạn đang phát triển
+│
+├── .agents/                                  <-- 🛡️ Thư mục IDE Rules & Skills (NẰM CÙNG CẤP VỚI JevGuarAgent)
+│   │                                              (Được tự động liên kết khi bạn chạy 'guar active')
 │   ├── rules/
-│   │   └── jog_guardrail.md    # Quy tắc bảo mật chuẩn cho AI Agents
+│   │   └── jog_guardrail.md                  <-- Quy tắc chỉ đạo AI Agent phải kiểm duyệt prompt & phỏng đoán kiến trúc
 │   └── skills/
 │       └── jog-guard/
-│           └── SKILL.md        # Kỹ năng tra cứu JOG cho Agent
-├── bin/                        # Bộ nhị phân CLI & Interceptors
-│   ├── claude                  # CLI Shim cho Claude Code
-│   ├── codex                   # CLI Shim cho Codex
-│   ├── gemini                  # CLI Shim cho Gemini CLI
-│   ├── guar                    # Symlink lệnh tắt guar
-│   └── jog                     # CLI quản trị trung tâm của JOG
-├── config/
-│   └── jog_config.json         # Cấu hình ngưỡng bảo vệ, ports, upstreams
-├── hooks/
-│   └── pre-commit              # Script Git Pre-commit hook template
-├── jog/                        # Gói mã nguồn cốt lõi (Core Python Package)
-│   ├── __init__.py             # Định nghĩa phiên bản JOG (v1.0.0)
-│   ├── config.py               # Quản lý nạp cấu hình & discovery .env
-│   ├── jev_engine.py           # Bộ não phân tích (AST, Heuristics, Intent Classifier)
-│   ├── intercept_cli.py        # Module đánh chặn lệnh CLI
-│   ├── local_proxy.py          # Module Local Intercepting HTTP Proxy (:8080)
-│   ├── logger.py               # Module Audit Trail & Terminal UI
-│   └── pre_commit_guard.py     # Module bảo vệ tầng Git
-├── tests/                      # Bộ kiểm thử tự động toàn diện
-│   ├── test_cli.py             # Kiểm thử CLI & lệnh activate/deactivate
-│   ├── test_engine.py          # Kiểm thử AST, Secrets, Future Risks, Advisory
-│   ├── test_pre_commit.py      # Kiểm thử Git Hook
-│   ├── test_proxy.py           # Kiểm thử Local Proxy & Auto-Feedback
-│   └── run_all_tests.py        # Runner chạy toàn bộ 32 test cases
-├── demo.sh                     # Kịch bản trình diễn tương tác 4 kênh thực tế
-├── guar                        # Trình khởi chạy nhanh trực tiếp tại gốc
-├── install.sh                  # Kịch bản cài đặt tự động 1-Click
-├── requirements.txt            # Danh sách thư viện phụ thuộc (requests, rich)
-└── uninstall.sh                # Kịch bản gỡ bỏ JOG sạch sẽ
+│           └── SKILL.md                      <-- Kỹ năng tích hợp JOG Guardrail để Agent tự tra cứu và thực thi
+│
+├── .git/                                     <-- 🌳 Quản lý phiên bản mã nguồn Git
+│   └── hooks/
+│       └── pre-commit                        <-- Hook tự động kích hoạt khi 'git commit', chặn rò rỉ secret & code lỗi
+│
+├── .jog/                                     <-- 📊 Dữ liệu kiểm toán & nhật ký runtime của Guardrail
+│   └── logs/
+│       └── audit.log                         <-- File nhật ký ghi lại toàn bộ prompt, verdict, rủi ro & phỏng đoán edge cases
+│
+├── JevGuarAgent/                             <-- 🚀 BỘ CÔNG CỤ GUARDRAIL (NẰM CÙNG CẤP VỚI .agents/)
+│   ├── bin/                                  <-- Bộ công cụ CLI: guar, jog, claude, codex, gemini
+│   ├── config/
+│   │   └── jog_config.json                   <-- Cấu hình ngưỡng bảo mật, cổng mạng, upstream
+│   ├── hooks/
+│   │   └── pre-commit                        <-- File hook mẫu chuẩn bị triển khai
+│   ├── jog/                                  <-- 🧠 BỘ NÃO CỐT LÕI (Python Engine)
+│   │   ├── __init__.py                       # Khởi tạo gói JOG
+│   │   ├── config.py                         # Module đọc cấu hình & tự động dò tìm .env
+│   │   ├── jev_engine.py                     # Phân tích AST, regex SecOps, phỏng đoán 9 domain kiến trúc
+│   │   ├── intercept_cli.py                  # Module đánh chặn lệnh CLI phá hoại
+│   │   ├── local_proxy.py                    # Local Intercepting HTTP Proxy (:8080)
+│   │   ├── logger.py                         # Trình ghi log kiểm toán & giao diện ANSI Terminal Monitor
+│   │   └── pre_commit_guard.py               # Module bảo vệ tầng Git trước khi commit
+│   ├── tests/                                <-- 🧪 Bộ kiểm thử tự động toàn diện (32/32 tests passed)
+│   ├── .env.example                          <-- File mẫu cấu hình biến môi trường
+│   ├── .env                                  <-- File chứa OPENROUTER_API_KEY (Được .gitignore bảo vệ tuyệt đối)
+│   ├── guar                                  <-- Trình khởi chạy nhanh trực tiếp tại chỗ
+│   ├── install.sh                            <-- Script cài đặt toàn cục 1-Click
+│   ├── requirements.txt                      <-- Thư viện phụ thuộc
+│   └── README.md                             <-- Toàn bộ tài liệu hướng dẫn vận hành
+│
+├── src/ (hoặc app/, lib/, components/)       <-- 💻 Toàn bộ mã nguồn sản phẩm thực tế của bạn
+├── package.json (hoặc requirements.txt...)   <-- File quản lý thư viện của dự án chính
+└── .env                                      <-- (Tùy chọn) File môi trường của dự án chính (JOG tự động nhận diện)
 ```
+
+### 💡 Mối quan hệ tương hỗ giữa `.agents/` và `JevGuarAgent/`:
+1. **`.agents/` là "Bộ Rễ Chỉ Đạo" cho AI IDE**:
+   - Khi bạn mở dự án trong Cursor, Antigravity, hoặc VS Code, IDE sẽ tự động nạp các tệp trong thư mục `.agents/rules/` và `.agents/skills/`.
+   - AI Agent sẽ đọc các quy tắc này và biết rằng: *“Trước khi chạy lệnh terminal hoặc chỉnh sửa code, mình bắt buộc phải hỏi qua bộ não JOG Guardrail nằm ở JevGuarAgent”*.
+2. **`JevGuarAgent/` là "Bộ Não Phòng Thủ & Cố Vấn"**:
+   - Nằm cạnh `.agents/`, đóng vai trò là động cơ thực thi. Nó quét mã bằng AST Python, đối soát regex zero-trust, liên lạc với OpenRouter API để dự báo các tình huống edge cases (Idempotency, Race Condition, Memory Leak) và trả kết quả về cho Agent.
+3. **`.git/hooks/pre-commit` là "Chiếc Khiên Chặn Cuối"**:
+   - Đảm bảo ngay cả khi Agent lỡ tạo code lỗi hoặc bạn vô tình commit file `.env`, lệnh `git commit` sẽ bị chặn cứng ngay tại máy của bạn trước khi kịp đẩy lên GitHub.
 
 ---
 
