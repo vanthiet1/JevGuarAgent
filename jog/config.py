@@ -15,11 +15,12 @@ from typing import Optional, Dict, Any
 
 @dataclass
 class ApiConfig:
-    """Cấu hình kết nối tới TypeSafe AI API."""
+    """Cấu hình kết nối tới TypeSafe AI hoặc OpenRouter API."""
     typesafe_api_url: str = "https://api.typesafe.ai/v1/systemone"
     typesafe_api_key: Optional[str] = None
     timeout_seconds: float = 3.0
     enable_offline_fallback: bool = True
+    model: str = "deepseek/deepseek-chat" 
 
 
 @dataclass
@@ -268,9 +269,13 @@ def load_config(config_path: Optional[str] = None) -> JogConfig:
             pass
 
     # Ghi đè bằng biến môi trường (Environment Variables có độ ưu tiên cao nhất)
-    env_api_key = os.environ.get("TYPESAFE_API_KEY")
+    env_api_key = os.environ.get("TYPESAFE_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
     if env_api_key:
         config.api.typesafe_api_key = env_api_key.strip()
+    
+    env_model = os.environ.get("JOG_LLM_MODEL")
+    if env_model:
+        config.api.model = env_model.strip()
 
     env_api_url = os.environ.get("TYPESAFE_API_URL")
     if env_api_url:

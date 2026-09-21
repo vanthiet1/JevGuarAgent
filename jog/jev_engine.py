@@ -493,10 +493,53 @@ class JevEngine:
         channel: str,
         context: Optional[Dict[str, Any]]
     ) -> Optional[PromptCheckResult]:
-        """Gửi request thẩm định Mode 1 tới TypeSafe API."""
+        """Gửi request thẩm định Mode 1 tới OpenRouter hoặc TypeSafe API."""
+        api_key = self.config.api.typesafe_api_key
+        if not api_key:
+            return None
+
+        # Trường hợp sử dụng OpenRouter API
+        if api_key.startswith("sk-" + "or-"):
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/vanthiet1/JevGuarAgent",
+                "X-Title": "JevGuarAgent"
+            }
+            payload = {
+                "model": getattr(self.config.api, "model", "deepseek/deepseek-chat"),
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a SecOps & Code Integrity AI engine. Analyze the given prompt or command for security risks, secret leaks, and destructive commands. Reply ONLY with valid JSON having keys: has_credential_leak (bool), destructive_intent_score (float 1-10), action_verdict (allow/warn_user/block_immediately), details (list of strings), remediation (string or null)."
+                    },
+                    {"role": "user", "content": text}
+                ],
+                "response_format": {"type": "json_object"}
+            }
+            try:
+                resp = requests.post(url, headers=headers, json=payload, timeout=self.config.api.timeout_seconds)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = data["choices"][0]["message"]["content"]
+                    parsed = json.loads(content)
+                    return PromptCheckResult(
+                        has_credential_leak=bool(parsed.get("has_credential_leak", False)),
+                        destructive_intent_score=float(parsed.get("destructive_intent_score", 1.0)),
+                        action_verdict=str(parsed.get("action_verdict", "allow")),
+                        details=parsed.get("details", []),
+                        remediation=parsed.get("remediation"),
+                        engine_source="openrouter_cloud"
+                    )
+            except Exception:
+                pass
+            return None
+
+        # Trường hợp sử dụng TypeSafe Enterprise API
         url = self.config.api.typesafe_api_url
         headers = {
-            "Authorization": f"Bearer {self.config.api.typesafe_api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "User-Agent": "Jev-Omnichannel-Guardrail/1.0"
         }
