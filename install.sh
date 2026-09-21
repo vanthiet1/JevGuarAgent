@@ -130,6 +130,6 @@ echo -e "\n${BOLD}5. Kiểm tra thử nghiệm tính năng bảo vệ:${NC}"
 echo -e "   • Quét lệnh Terminal nguy hiểm:  ${YELLOW}jog check prompt 'rm -rf /'${NC}"
 echo -e "   • Quét mã nguồn lỗi tương lai:   ${YELLOW}jog check code 'def f(): f=open(\"a.txt\")'${NC}"
 echo -e "   • Xem nhật ký kiểm toán:         ${YELLOW}jog audit${NC}"
-echo -e "   • Chạy toàn bộ kịch bản demo:    ${YELLOW}bash demo.sh${NC}"
+echo -e "   • Chạy toàn bộ test tự động:     ${YELLOW}python3 tests/run_all_tests.py${NC}"
 
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════════════════════${NC}\n"

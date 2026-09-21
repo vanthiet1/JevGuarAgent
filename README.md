@@ -436,11 +436,8 @@ my-project/ (hoặc wedding-manager/)           <-- 📁 Thư mục gốc của 
 Dự án đi kèm bộ kiểm thử tự động toàn diện **32 bài test** kiểm tra từng ngóc ngách của hệ thống phòng thủ:
 
 ```bash
-# Chạy toàn bộ test suite:
+# Chạy toàn bộ test suite tự động (32/32 tests passed):
 python3 tests/run_all_tests.py
-
-# Chạy kịch bản demo trực quan tương tác 4 kênh:
-bash demo.sh
 ```
 
 Kết quả kiểm thử:
