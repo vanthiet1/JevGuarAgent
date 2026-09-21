@@ -13,6 +13,17 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 
+def safe_getcwd() -> Path:
+    """Trả về thư mục làm việc an toàn, tự động xử lý khi thư mục hiện tại bị xóa."""
+    try:
+        return Path(os.getcwd()).resolve()
+    except (FileNotFoundError, OSError):
+        pwd = os.environ.get("PWD")
+        if pwd and os.path.exists(pwd):
+            return Path(pwd).resolve()
+        return Path(__file__).resolve().parent.parent
+
+
 @dataclass
 class ApiConfig:
     """Cấu hình kết nối tới TypeSafe AI hoặc OpenRouter API."""
@@ -64,7 +75,7 @@ class JogConfig:
     git_hook: GitHookConfig = field(default_factory=GitHookConfig)
     cli: CliConfig = field(default_factory=CliConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
-    base_dir: Path = field(default_factory=lambda: Path(os.getcwd()))
+    base_dir: Path = field(default_factory=safe_getcwd)
 
     def to_dict(self) -> Dict[str, Any]:
         """Chuyển đổi cấu hình sang dạng dictionary."""
@@ -113,7 +124,7 @@ def find_config_file(custom_path: Optional[str] = None) -> Optional[Path]:
     if os.environ.get("JOG_CONFIG_PATH"):
         candidates.append(Path(os.environ["JOG_CONFIG_PATH"]))
     
-    current_dir = Path(os.getcwd())
+    current_dir = safe_getcwd()
     candidates.append(current_dir / ".jog_config.json")
     candidates.append(current_dir / "config" / "jog_config.json")
     
@@ -157,7 +168,7 @@ def load_env_files(search_dirs: Optional[list] = None) -> Dict[str, str]:
     Tự động export vào os.environ để toàn bộ tiến trình hệ thống đọc được.
     """
     if search_dirs is None:
-        search_dirs = [Path.cwd()]
+        search_dirs = [safe_getcwd()]
         
         # Tự động phát hiện thư mục gốc của repository dự án mà dev đang làm việc
         git_root = get_git_root()

@@ -133,11 +133,22 @@ def cmd_check_code(args):
     sys.exit(0 if res.maintainability_verdict == "pass" else (1 if res.maintainability_verdict == "reject_force_agent_rewrite" else 2))
 
 
+def safe_cwd() -> Path:
+    """Trả về thư mục làm việc hiện tại, tự động xử lý khi thư mục bị xóa ngoài hệ thống file."""
+    try:
+        return Path.cwd().resolve()
+    except (FileNotFoundError, OSError):
+        pwd = os.environ.get("PWD")
+        if pwd and Path(pwd).exists():
+            return Path(pwd).resolve()
+        return BASE_DIR
+
+
 def get_target_project(target_arg=None) -> Path:
     """Tự động xác định thư mục dự án cần kích hoạt bảo vệ."""
     if target_arg:
         return Path(target_arg).resolve()
-    cwd = Path.cwd().resolve()
+    cwd = safe_cwd()
     # Nếu đang chạy từ project cha chứa JevGuarAgent
     if cwd != BASE_DIR and ((cwd / ".git").exists() or (cwd / "package.json").exists() or (cwd / ".agents").exists()):
         return cwd

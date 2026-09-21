@@ -103,10 +103,15 @@ def run_cli_interceptor(target_binary: str, raw_args: List[str]) -> int:
             return 0
 
     # 1. Gửi qua JevEngine (Chế độ 1: Prompt & Action Check)
+    try:
+        current_cwd = os.getcwd()
+    except (FileNotFoundError, OSError):
+        current_cwd = os.environ.get("PWD", str(Path(__file__).resolve().parent.parent))
+
     result: PromptCheckResult = engine.check_prompt_and_action(
         prompt_or_command=prompt_text,
         channel=f"cli_{target_binary}",
-        context={"target_binary": target_binary, "cwd": os.getcwd()}
+        context={"target_binary": target_binary, "cwd": current_cwd}
     )
 
     # 2. Xử lý các phán quyết (Verdicts)
