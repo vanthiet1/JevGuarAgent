@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# =============================================================================
+# JOG Shim: codex
+# Tự động chuyển tiếp lệnh qua JOG CLI Interceptor trước khi gọi binary gốc.
+# =============================================================================
+set -e
+
+SHIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SHIM_DIR/.." && pwd)"
+
+export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+exec python3 -m jog.intercept_cli --target codex "$@"

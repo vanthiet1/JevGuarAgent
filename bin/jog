@@ -1,0 +1,626 @@
+#!/usr/bin/env python3
+"""
+bin/jog
+=======
+Giao diện dòng lệnh chính (Main CLI) của Jev Omnichannel Guardrail.
+Cung cấp các lệnh quản trị:
+  - jog proxy start: Khởi động Local Intercepting Proxy (:8080)
+  - jog check prompt <câu_lệnh>: Kiểm tra thủ công rủi ro prompt / bash
+  - jog check code <tệp_mã_nguồn>: Kiểm tra sức khỏe mã nguồn và rủi ro tương lai
+  - jog audit: Xem nhật ký kiểm toán bảo mật (Audit Trail)
+  - jog status: Kiểm tra trạng thái cấu hình và kết nối TypeSafe API
+  - jog wrap <lệnh> [tham_số...]: Bọc bất kỳ lệnh nào trong Terminal dưới sự bảo vệ của JOG
+"""
+
+import os
+import sys
+from pathlib import Path
+
+# Đảm bảo PYTHONPATH bao gồm thư mục gốc dự án
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+import argparse
+import json
+import time
+from jog.config import load_config
+from jog.logger import JogLogger, get_logger
+from jog.jev_engine import JevEngine
+from jog.intercept_cli import run_cli_interceptor
+
+
+def cmd_proxy_start(args):
+    """Khởi động Local Intercepting HTTP Proxy."""
+    from jog.local_proxy import run_proxy_server
+    config = load_config()
+    host = args.host or config.proxy.host
+    port = args.port or config.proxy.port
+    run_proxy_server(host=host, port=port)
+
+
+def cmd_check_prompt(args):
+    """Kiểm tra một chuỗi prompt hoặc lệnh bash."""
+    text = " ".join(args.text)
+    if not text.strip() and not sys.stdin.isatty():
+        text = sys.stdin.read().strip()
+
+    if not text:
+        print("Vui lòng cung cấp nội dung cần kiểm tra. Ví dụ: jog check prompt 'rm -rf /'")
+        sys.exit(1)
+
+    config = load_config()
+    engine = JevEngine(config)
+    res = engine.check_prompt_and_action(text, channel="cli_manual_check")
+    advisory = engine.predict_architecture_advisory(text)
+
+    if getattr(args, "json", False):
+        out_dict = res.to_dict()
+        out_dict["predicted_edge_cases"] = advisory.to_dict() if advisory else None
+        print(json.dumps(out_dict, indent=2, ensure_ascii=False))
+        sys.exit(0 if res.action_verdict == "allow" else (1 if res.action_verdict == "block_immediately" else 2))
+
+    print("\n" + "=" * 65)
+    print("🛡️  KẾT QUẢ KIỂM TRA PROMPT & PHỎNG ĐOÁN EDGE CASES (CHẾ ĐỘ 1)")
+    print("=" * 65)
+    print(f"• Quyết định (Verdict)       : {res.action_verdict.upper()}")
+    print(f"• Điểm phá hoại (1-10)       : {res.destructive_intent_score}")
+    print(f"• Rò rỉ thông tin bí mật     : {'CÓ (NGUY HIỂM)' if res.has_credential_leak else 'KHÔNG'}")
+    print(f"• Nguồn thẩm định             : {res.engine_source}")
+    print("• Chi tiết đánh giá an toàn:")
+    for d in res.details:
+        print(f"    - {d}")
+    if res.remediation:
+        print(f"\n💡 Hướng dẫn xử lý: {res.remediation}")
+
+    if advisory:
+        print("\n🧠 PHỎNG ĐOÁN RỦI RO KIẾN TRÚC & EDGE CASES TƯƠNG LAI:")
+        print(f"  • Ý định phát hiện   : {advisory.intent_description}")
+        print("  • Các rủi ro/Edge Cases tiềm ẩn cần phòng ngừa:")
+        for rf in advisory.risk_factors:
+            print(f"      ⚠️  {rf}")
+        print("  • Mô hình kiến trúc tối ưu khuyến nghị:")
+        for rp in advisory.recommended_patterns:
+            print(f"      ✓  {rp}")
+        print("\n  📌 Chỉ thị quy chuẩn cho Agent:")
+        for line in advisory.injected_prompt_directive.splitlines():
+            print(f"      {line}")
+
+    print("=" * 65 + "\n")
+
+    sys.exit(0 if res.action_verdict == "allow" else (1 if res.action_verdict == "block_immediately" else 2))
+
+
+def cmd_check_code(args):
+    """Kiểm tra sức khỏe mã nguồn từ tệp hoặc chuỗi."""
+    target = args.file_or_snippet
+    code_content = ""
+    file_path = None
+
+    if os.path.isfile(target):
+        file_path = target
+        with open(target, "r", encoding="utf-8", errors="replace") as f:
+            code_content = f.read()
+    else:
+        code_content = target
+
+    config = load_config()
+    engine = JevEngine(config)
+    res = engine.check_code_health(code_content, file_path=file_path, channel="cli_code_check")
+
+    if getattr(args, "json", False):
+        print(json.dumps(res.to_dict(), indent=2, ensure_ascii=False))
+        sys.exit(0 if res.maintainability_verdict == "pass" else (1 if res.maintainability_verdict == "reject_force_agent_rewrite" else 2))
+
+    print("\n" + "=" * 65)
+    print("🔬 KẾT QUẢ CHẨN ĐOÁN MÃ NGUỒN TƯƠNG LAI (CHẾ ĐỘ 2)")
+    print("=" * 65)
+    print(f"• Phán quyết (Maintainability) : {res.maintainability_verdict.upper()}")
+    print(f"• Nguy cơ sập hệ thống (1-10)  : {res.production_stability_score}")
+    print(f"• Phân loại lỗi kiến trúc      : {res.architecture_flaw_type}")
+    print(f"• Rủi ro an ninh tương lai     : {'CÓ' if res.future_security_risk else 'KHÔNG'}")
+    print(f"• Nguy cơ rò rỉ secret (0-1)   : {res.leak_risk}")
+    print(f"• Nguồn thẩm định              : {res.engine_source}")
+    print("• Các vấn đề phát hiện:")
+    for flaw in res.detected_flaws:
+        print(f"    - {flaw}")
+    if res.remediation_suggestions:
+        print("• Khuyến nghị tối ưu (Feedback cho Agent):")
+        for rec in res.remediation_suggestions:
+            print(f"    -> {rec}")
+    print("=" * 65 + "\n")
+
+    sys.exit(0 if res.maintainability_verdict == "pass" else (1 if res.maintainability_verdict == "reject_force_agent_rewrite" else 2))
+
+
+def get_target_project(target_arg=None) -> Path:
+    """Tự động xác định thư mục dự án cần kích hoạt bảo vệ."""
+    if target_arg:
+        return Path(target_arg).resolve()
+    cwd = Path.cwd().resolve()
+    # Nếu đang chạy từ project cha chứa JevGuarAgent
+    if cwd != BASE_DIR and ((cwd / ".git").exists() or (cwd / "package.json").exists() or (cwd / ".agents").exists()):
+        return cwd
+    # Nếu đang chạy từ trong chính thư mục JevGuarAgent
+    parent = BASE_DIR.parent
+    if (parent / ".git").exists() or (parent / "package.json").exists():
+        return parent
+    return cwd
+
+
+def cmd_activate(args):
+    """Kích hoạt toàn diện Jev Omnichannel Guardrail cho dự án."""
+    target_repo = get_target_project(getattr(args, "target", None))
+    print("\n" + "=" * 75)
+    print("🛡️  ĐANG KÍCH HOẠT JEV OMNICHANNEL GUARDRAIL (JOG)...")
+    print("=" * 75)
+    print(f"🎯 Dự án mục tiêu: {target_repo}\n")
+
+    jog_bin = BASE_DIR / "bin" / "jog"
+    try:
+        rel_path = os.path.relpath(jog_bin, target_repo)
+        if not rel_path.startswith("."):
+            rel_jog = f"./{rel_path}"
+        else:
+            rel_jog = rel_path
+    except Exception:
+        rel_jog = str(jog_bin)
+
+    # 1. Tạo cấu hình IDE Customizations (.agents)
+    agents_dir = target_repo / ".agents"
+    rules_dir = agents_dir / "rules"
+    skills_dir = agents_dir / "skills" / "jog-guard"
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    skills_dir.mkdir(parents=True, exist_ok=True)
+
+    rule_content = f"""# JOG Guardrail & Security Rules for AI Agent
+
+## 1. Phạm vi áp dụng
+Quy tắc này bắt buộc đối với mọi AI Coding Agent hoạt động trong dự án.
+Hệ thống sử dụng bộ não phòng thủ **Jev Omnichannel Guardrail (JOG)** đặt tại: `{rel_jog}`.
+
+---
+
+## 2. Kiểm tra an toàn câu lệnh (Command Safety)
+Trước khi thực thi các lệnh terminal có tác dụng phụ (xóa file, cài package lạ, cấu hình mạng, export secrets), Agent bắt buộc phải kiểm tra thông qua JOG:
+
+```bash
+{rel_jog} check prompt --json "<câu_lệnh>"
+```
+
+* **Nếu `"action_verdict": "allow"`**: Được phép thực thi lệnh an toàn.
+* **Nếu `"action_verdict": "warn_user"`**: Cảnh báo rủi ro tiềm ẩn và hỏi ý kiến người dùng trước khi chạy.
+* **Nếu `"action_verdict": "block_immediately"`**: **TUYỆT ĐỐI KHÔNG CHẠY LỆNH NÀY**. Báo cáo ngay cho người dùng lý do vi phạm (lệnh phá hoại, rò rỉ secret, xóa file hệ thống).
+
+---
+
+## 3. Kiểm tra an toàn mã nguồn (Code Health & Future Risks)
+Trước khi ghi đè hoặc tạo mới các file logic quan trọng, Agent sử dụng JOG để phân tích các rủi ro kiến trúc tương lai (SQL Injection, N+1 Query, Memory Leak, thiếu timeout HTTP):
+
+```bash
+{rel_jog} check code --json "<đường_dẫn_tệp>"
+```
+
+* **Nếu `"maintainability_verdict": "pass"`**: Code đảm bảo chất lượng.
+* **Nếu `"maintainability_verdict": "reject_force_agent_rewrite"`**:
+  * Agent đọc kỹ mảng `detected_flaws` và `remediation_suggestions` do JOG trả về.
+  * Tự động sửa lại code sạch (sử dụng Parameterized Query, gán timeout cho network fetch, giải phóng tài nguyên) trước khi cung cấp cho người dùng.
+
+---
+
+## 4. Phỏng đoán rủi ro & Xử lý trọn vẹn Edge Cases (Proactive Architecture Advisory)
+Khi nhận yêu cầu phát triển tính năng từ người dùng (Realtime, Upload file, Thanh toán, Auth, Caching, DB Query, Background Jobs):
+* Agent kiểm tra trước qua:
+  ```bash
+  {rel_jog} check prompt --json "<mô_tả_yêu_cầu>"
+  ```
+* Nếu trường `predicted_edge_cases` có dữ liệu:
+  * Agent **BẮT BUỘC** đọc kỹ danh sách `risk_factors` (các trường hợp góc / edge cases tiềm ẩn như Double Spending, Race Condition, Unclosed File Descriptor, Missing Timeout, Cache Stampede...).
+  * Agent thiết kế mã nguồn bao quát toàn diện các case này theo `recommended_patterns` và `injected_prompt_directive` ngay từ đầu, đảm bảo tính ổn định tuyệt đối trước khi bàn giao cho người dùng.
+"""
+
+    skill_content = f"""---
+name: jog-guard
+description: Jev Omnichannel Guardrail integration skill. Use this skill to inspect shell commands for destructive actions/secret leaks and inspect source code for future stability risks (SQLi, memory leaks, unclosed streams, missing timeouts) before applying changes.
+---
+
+# JOG Guardrail Skill
+
+Skill này hướng dẫn AI Agent phối hợp cùng hệ thống **Jev Omnichannel Guardrail (JOG)** đặt tại `{rel_jog}`.
+
+## Cách thức sử dụng
+
+### 1. Kiểm tra an toàn lệnh Shell / Bash
+Chạy lệnh sau từ thư mục dự án:
+```bash
+{rel_jog} check prompt --json "<câu_lệnh_cần_chạy>"
+```
+
+**Cách đọc kết quả JSON:**
+- `action_verdict`:
+  - `"allow"`: Lệnh hoàn toàn an toàn, có thể thực thi.
+  - `"warn_user"`: Lệnh có tác dụng phụ, cần thông báo và hỏi ý kiến người dùng trước.
+  - `"block_immediately"`: Lệnh nguy hiểm (phá hoại hoặc lộ bí mật). **Hủy ngay lập tức**.
+
+### 2. Kiểm tra sức khỏe mã nguồn (Code Health & Future Risks)
+Chạy lệnh sau để Jev chẩn đoán:
+```bash
+{rel_jog} check code --json "<đường_dẫn_tệp_hoặc_đoạn_mã>"
+```
+
+**Cách đọc kết quả JSON:**
+- `maintainability_verdict`:
+  - `"pass"`: Code an toàn, đạt chuẩn.
+  - `"warn_dev_needs_refactor"`: Code có thể tối ưu thêm.
+  - `"reject_force_agent_rewrite"`: Code có rủi ro nghiêm trọng (SQL Injection, Memory Leak, N+1 Query, thiếu timeout).
+- `detected_flaws`: Danh sách các lỗi kiến trúc Jev đã phát hiện.
+- `remediation_suggestions`: Hướng dẫn cụ thể để Agent sửa lại code.
+"""
+
+    rule_file = rules_dir / "jog_guardrail.md"
+    skill_file = skills_dir / "SKILL.md"
+    with open(rule_file, "w", encoding="utf-8") as f:
+        f.write(rule_content)
+    with open(skill_file, "w", encoding="utf-8") as f:
+        f.write(skill_content)
+    print(f"  [✓] AI Agent IDE Rules   : ĐÃ BẬT ({rule_file.relative_to(target_repo)})")
+    print(f"  [✓] AI Agent IDE Skills  : ĐÃ BẬT ({skill_file.relative_to(target_repo)})")
+
+    # 2. Cài đặt Git Pre-Commit Hook
+    git_dir = target_repo / ".git"
+    if git_dir.exists():
+        hooks_dir = git_dir / "hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        hook_file = hooks_dir / "pre-commit"
+        hook_content = f"""#!/usr/bin/env bash
+# =============================================================================
+# JOG Git Hook - Tự động bảo vệ mã nguồn
+# =============================================================================
+set -e
+export PYTHONPATH="{BASE_DIR}:$PYTHONPATH"
+exec python3 -m jog.pre_commit_guard "$@"
+"""
+        with open(hook_file, "w", encoding="utf-8") as f:
+            f.write(hook_content)
+        os.chmod(hook_file, 0o755)
+        print(f"  [✓] Git Pre-Commit Guard : ĐÃ BẬT ({hook_file.relative_to(target_repo)})")
+    else:
+        print(f"  [-] Git Pre-Commit Guard : BỎ QUA (Không tìm thấy thư mục .git tại {target_repo})")
+
+    # 3. Tạo thư mục audit log
+    logs_dir = target_repo / ".jog" / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  [✓] Nhật ký kiểm toán    : ĐÃ SẴN SÀNG ({logs_dir.relative_to(target_repo)}/)")
+
+    print("\n" + "=" * 75)
+    print("🎉 KÍCH HOẠT THÀNH CÔNG! Dự án của bạn đã được bảo vệ toàn diện bởi JOG.")
+    print("=" * 75 + "\n")
+
+
+def cmd_deactivate(args):
+    """Hủy kích hoạt Jev Omnichannel Guardrail khỏi dự án."""
+    target_repo = get_target_project(getattr(args, "target", None))
+    print(f"\n🛡️  Đang hủy kích hoạt JOG khỏi: {target_repo}...")
+
+    rule_file = target_repo / ".agents" / "rules" / "jog_guardrail.md"
+    skill_file = target_repo / ".agents" / "skills" / "jog-guard" / "SKILL.md"
+
+    if rule_file.exists():
+        rule_file.unlink()
+        print("  [✓] Đã xóa quy tắc IDE: .agents/rules/jog_guardrail.md")
+    if skill_file.exists():
+        skill_file.unlink()
+        print("  [✓] Đã xóa kỹ năng IDE: .agents/skills/jog-guard/SKILL.md")
+
+    hook_file = target_repo / ".git" / "hooks" / "pre-commit"
+    if hook_file.exists():
+        try:
+            with open(hook_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            if "jog.pre_commit_guard" in content or "JOG Git Hook" in content:
+                hook_file.unlink()
+                print("  [✓] Đã gỡ bỏ Git pre-commit hook của JOG.")
+        except Exception:
+            pass
+
+    print("✓ Đã hủy kích hoạt JOG thành công.\n")
+
+
+
+def _print_monitor_event(entry: Dict[str, Any]):
+    """Định dạng và in sự kiện thời gian thực ra màn hình terminal."""
+    CYAN = "[36m"
+    GREEN = "[32m"
+    RED = "[31m"
+    YELLOW = "[33m"
+    BLUE = "[34m"
+    MAGENTA = "[35m"
+    BOLD = "[1m"
+    RESET = "[0m"
+
+    ts = entry.get("timestamp", "")
+    time_str = ts.split("T")[-1][:8] if "T" in ts else ts[:8]
+    event_type = entry.get("event_type", "event")
+    channel = entry.get("channel", "unknown")
+    verdict = entry.get("verdict", "")
+    risk_score = entry.get("risk_score", 0.0)
+    details = entry.get("details", {})
+    raw_snippet = entry.get("raw_snippet", "").strip()
+
+    if verdict in ("allow", "pass"):
+        v_badge = f"{GREEN}{BOLD}[✓ AN TOÀN: {verdict.upper()}]{RESET}"
+    elif verdict in ("warn_user", "warn_dev_needs_refactor"):
+        v_badge = f"{YELLOW}{BOLD}[⚠️ CẢNH BÁO: {verdict.upper()}]{RESET}"
+    else:
+        v_badge = f"{RED}{BOLD}[🚨 CHẶN NGAY: {verdict.upper()}]{RESET}"
+
+    print(f"{BOLD}[{time_str}]{RESET} 📡 {CYAN}{BOLD}[KÊNH: {channel.upper()}]{RESET} • {v_badge} (Điểm rủi ro: {risk_score}/10)")
+    
+    if raw_snippet:
+        snippet_display = raw_snippet.replace(chr(10), " ")
+        if len(snippet_display) > 110:
+            snippet_display = snippet_display[:107] + '...'
+        print(f'  💬 {BOLD}Nội dung:{RESET} "{snippet_display}"')
+
+    advisory = details.get("predicted_edge_cases")
+    if advisory and isinstance(advisory, dict):
+        desc = advisory.get("intent_description", "")
+        print(f"  🧠 {MAGENTA}{BOLD}Intent nhận diện:{RESET} {desc}")
+        risk_factors = advisory.get("risk_factors", [])
+        if risk_factors:
+            print(f"  ⚠️  {YELLOW}{BOLD}Edge Cases phỏng đoán:{RESET}")
+            for rf in risk_factors[:3]:
+                print(f"      - {rf}")
+        recs = advisory.get("recommended_patterns", [])
+        if recs:
+            print(f"  ✓  {GREEN}{BOLD}Kiến trúc đề xuất:{RESET} {recs[0]}")
+
+    issues = details.get("issues") or details.get("detected_flaws") or []
+    filtered_issues = [i for i in issues if i != "Câu lệnh an toàn."]
+    if filtered_issues:
+        print(f"  ❌ {RED}{BOLD}Lỗ hổng / Rủi ro phát hiện:{RESET}")
+        for iss in filtered_issues:
+            print(f"      - {iss}")
+
+    remediation = details.get("remediation")
+    if remediation:
+        print(f"  💡 {CYAN}{BOLD}Hướng dẫn sửa đổi:{RESET} {remediation}")
+
+    print(f"{BLUE}-------------------------------------------------------------------------------{RESET}")
+
+
+def cmd_watch(args):
+    """Giám sát thời gian thực luồng Prompt và phản hồi bảo mật (Realtime Live Monitor)."""
+    target_repo = get_target_project(getattr(args, "target", None))
+    log_file = target_repo / ".jog" / "logs" / "audit.log"
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    if not log_file.exists():
+        log_file.touch()
+
+    CYAN = "[36m"
+    GREEN = "[32m"
+    YELLOW = "[33m"
+    BLUE = "[34m"
+    BOLD = "[1m"
+    RESET = "[0m"
+
+    print(f"{CYAN}{BOLD}╔═════════════════════════════════════════════════════════════════════════════╗{RESET}")
+    print(f"{CYAN}{BOLD}║         🛡️   JEV GUARDRAIL (JOG) - REALTIME LIVE MONITOR                    ║{RESET}")
+    print(f"{CYAN}{BOLD}║        Đang giám sát thời gian thực mọi luồng Prompt & Phản hồi...          ║{RESET}")
+    print(f"{CYAN}{BOLD}╚═════════════════════════════════════════════════════════════════════════════╝{RESET}")
+    print(f"🎯 Dự án theo dõi  : {BOLD}{target_repo}{RESET}")
+    print(f"📁 File nhật ký    : {log_file}")
+    print(f"⚡ Trạng thái      : {GREEN}Đang lắng nghe! Bạn chat với Agent trong IDE, sự kiện sẽ nhảy ở đây.{RESET}")
+    print(f"🛑 Dừng giám sát   : Nhấn {YELLOW}Ctrl+C{RESET} để thoát.")
+    print(f"{BLUE}-------------------------------------------------------------------------------{RESET}")
+
+    # In 3 sự kiện gần nhất nếu có
+    try:
+        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+            if lines:
+                print(f"{YELLOW}📋 [Sự kiện gần nhất trước đó]:{RESET}")
+                for l in lines[-3:]:
+                    try:
+                        e = json.loads(l.strip())
+                        _print_monitor_event(e)
+                    except Exception:
+                        pass
+                print(f"{GREEN}🟢 Đang chờ sự kiện mới theo thời gian thực...{RESET}")
+    except Exception:
+        pass
+
+    # Lắng nghe thời gian thực (tail -f)
+    try:
+        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+            f.seek(0, os.SEEK_END)
+            while True:
+                line = f.readline()
+                if not line:
+                    time.sleep(0.2)
+                    continue
+                try:
+                    entry = json.loads(line.strip())
+                    _print_monitor_event(entry)
+                except Exception:
+                    continue
+    except KeyboardInterrupt:
+        print(f"{YELLOW}👋 Đã dừng chế độ giám sát Realtime.{RESET}")
+
+
+def cmd_install_hook(args):
+    """Cài đặt JOG Git Pre-commit Hook vào một repository bất kỳ."""
+    target_repo = Path(args.repo_path).resolve()
+    git_dir = target_repo / ".git"
+    if not git_dir.exists():
+        print(f"❌ Lỗi: Thư mục không phải Git repository (.git không tồn tại): {target_repo}")
+        sys.exit(1)
+
+    hooks_dir = git_dir / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook_file = hooks_dir / "pre-commit"
+
+    hook_content = f"""#!/usr/bin/env bash
+# =============================================================================
+# JOG Git Hook - Tự động bảo vệ mã nguồn
+# =============================================================================
+set -e
+export PYTHONPATH="{BASE_DIR}:$PYTHONPATH"
+exec python3 -m jog.pre_commit_guard "$@"
+"""
+    with open(hook_file, "w", encoding="utf-8") as f:
+        f.write(hook_content)
+    os.chmod(hook_file, 0o755)
+    print(f"✅ Đã cài đặt JOG Git Pre-commit Hook thành công vào: {hook_file}")
+
+
+def cmd_audit(args):
+    """Xem nhật ký kiểm toán bảo mật."""
+    config = load_config()
+    log_file = Path(config.logging.audit_log_file)
+    if not log_file.exists():
+        print(f"Chưa có nhật ký kiểm toán tại: {log_file}")
+        return
+
+    lines = []
+    with open(log_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    limit = args.limit or 20
+    print(f"\n📋 Hiển thị {min(len(lines), limit)} sự kiện kiểm toán gần nhất ({log_file}):\n")
+    for line in lines[-limit:]:
+        try:
+            entry = json.loads(line)
+            ts = entry.get("timestamp", "")
+            ch = entry.get("channel", "")
+            vd = entry.get("verdict", "")
+            score = entry.get("risk_score", "")
+            snip = entry.get("snippet_preview", "").replace("\n", " ")
+            print(f"[{ts}] [{ch:<12}] [{vd:<18}] Score: {score:<4} | {snip[:70]}")
+        except Exception:
+            print(line.strip())
+    print()
+
+
+def cmd_status(args):
+    """Hiển thị thông tin cấu hình và trạng thái hệ thống."""
+    import socket
+    JogLogger.print_banner()
+    target_repo = get_target_project()
+    rule_file = target_repo / ".agents" / "rules" / "jog_guardrail.md"
+    hook_file = target_repo / ".git" / "hooks" / "pre-commit"
+
+    print(f"🎯 DỰ ÁN MỤC TIÊU: {target_repo}")
+    print("TRẠNG THÁI BẢO VỆ HIỆN TẠI:")
+    print(f"  • AI Agent IDE Rules : {'✅ ĐÃ BẬT (.agents/rules/)' if rule_file.exists() else '❌ CHƯA BẬT (Chạy `jog activate` để bật)'}")
+    print(f"  • Git Pre-Commit     : {'✅ ĐÃ BẬT (.git/hooks/pre-commit)' if hook_file.exists() else '❌ CHƯA BẬT'}")
+
+    config = load_config()
+    proxy_open = False
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.5)
+        res = s.connect_ex((config.proxy.host, config.proxy.port))
+        if res == 0:
+            proxy_open = True
+        s.close()
+    except Exception:
+        pass
+
+    print(f"  • Local Proxy (:8080): {'✅ ĐANG CHẠY' if proxy_open else '⚪ ĐÃ DỪNG (Khởi động: `jog proxy start`)'}")
+    print()
+    print("CẤU HÌNH CHI TIẾT:")
+    print(json.dumps(config.to_dict(), indent=2, ensure_ascii=False))
+
+
+def cmd_wrap(args):
+    """Bọc và bảo vệ một câu lệnh bất kỳ."""
+    target_cmd = args.command
+    cmd_args = args.args
+    sys.exit(run_cli_interceptor(target_cmd, cmd_args))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="jog",
+        description="Jev Omnichannel Guardrail (JOG) Management Utility"
+    )
+    subparsers = parser.add_subparsers(dest="subcommand", help="Lệnh chức năng")
+
+    # jog activate / active
+    p_act = subparsers.add_parser("activate", aliases=["init", "enable", "active"], help="Kích hoạt toàn diện Guardrail cho dự án")
+    p_act.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần bảo vệ (Mặc định: tự nhận diện)")
+    p_act.add_argument("-w", "--watch", action="store_true", help="Tự động mở màn hình giám sát Realtime ngay sau khi kích hoạt")
+
+    # jog watch / monitor
+    p_watch = subparsers.add_parser("watch", aliases=["monitor", "live"], help="Giám sát thời gian thực mọi prompt và phản hồi từ AI Agent")
+    p_watch.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần theo dõi (Mặc định: tự nhận diện)")
+
+    # jog deactivate / deactive
+    p_deact = subparsers.add_parser("deactivate", aliases=["disable", "deactive"], help="Hủy kích hoạt Guardrail khỏi dự án")
+    p_deact.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án (Mặc định: tự nhận diện)")
+
+    # jog proxy start
+    p_proxy = subparsers.add_parser("proxy", help="Quản lý Local Intercepting Proxy")
+    p_proxy.add_argument("action", choices=["start"], help="Hành động proxy")
+    p_proxy.add_argument("--host", type=str, default=None, help="Địa chỉ IP lắng nghe")
+    p_proxy.add_argument("--port", type=int, default=None, help="Cổng lắng nghe (Mặc định: 8080)")
+
+    # jog check prompt
+    p_prompt = subparsers.add_parser("check", help="Kiểm tra prompt hoặc mã nguồn")
+    p_check_sub = p_prompt.add_subparsers(dest="check_type", required=True)
+    
+    p_cp = p_check_sub.add_parser("prompt", help="Kiểm tra prompt / bash command")
+    p_cp.add_argument("text", nargs="*", help="Nội dung câu lệnh cần kiểm tra")
+    p_cp.add_argument("--json", action="store_true", help="Xuất kết quả định dạng JSON cho AI Agent đọc")
+
+    p_cc = p_check_sub.add_parser("code", help="Kiểm tra sức khỏe tệp mã nguồn")
+    p_cc.add_argument("file_or_snippet", type=str, help="Đường dẫn tệp hoặc đoạn mã cần kiểm tra")
+    p_cc.add_argument("--json", action="store_true", help="Xuất kết quả định dạng JSON cho AI Agent đọc")
+
+    # jog install-hook
+    p_hook = subparsers.add_parser("install-hook", help="Cài đặt Git hook cho bất kỳ repo nào")
+    p_hook.add_argument("repo_path", nargs="?", default=".", help="Đường dẫn repo Git cần cài đặt (Mặc định: .)")
+
+    # jog audit
+    p_audit = subparsers.add_parser("audit", help="Xem nhật ký kiểm toán")
+    p_audit.add_argument("-n", "--limit", type=int, default=20, help="Số dòng sự kiện hiển thị")
+
+    # jog status
+    subparsers.add_parser("status", help="Kiểm tra trạng thái cấu hình JOG")
+
+    # jog wrap
+    p_wrap = subparsers.add_parser("wrap", help="Bọc thực thi lệnh terminal an toàn")
+    p_wrap.add_argument("command", type=str, help="Tên lệnh cần bọc (vd: bash, python)")
+    p_wrap.add_argument("args", nargs=argparse.REMAINDER, help="Các tham số dòng lệnh")
+
+    args = parser.parse_args()
+
+    if args.subcommand in ("activate", "init", "enable", "active"):
+        cmd_activate(args)
+    elif args.subcommand in ("deactivate", "disable", "deactive"):
+        cmd_deactivate(args)
+    elif args.subcommand in ("watch", "monitor", "live"):
+        cmd_watch(args)
+    elif args.subcommand == "proxy":
+        cmd_proxy_start(args)
+    elif args.subcommand == "check":
+        if args.check_type == "prompt":
+            cmd_check_prompt(args)
+        elif args.check_type == "code":
+            cmd_check_code(args)
+    elif args.subcommand == "install-hook":
+        cmd_install_hook(args)
+    elif args.subcommand == "audit":
+        cmd_audit(args)
+    elif args.subcommand == "status":
+        cmd_status(args)
+    elif args.subcommand == "wrap":
+        cmd_wrap(args)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
+

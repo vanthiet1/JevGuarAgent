@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# =============================================================================
+# JOG Git Hook: pre-commit
+# Tự động kích hoạt khi thực hiện lệnh git commit để bảo vệ mã nguồn.
+# =============================================================================
+set -e
+
+# Xác định thư mục gốc dự án
+GIT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+export PYTHONPATH="$GIT_DIR:$PYTHONPATH"
+
+# Kích hoạt JOG Pre-Commit Guardrail
+exec python3 -m jog.pre_commit_guard "$@"

@@ -1,0 +1,151 @@
+# ==============================================================================
+# Jev Omnichannel Guardrail (JOG) - .gitignore
+# Bộ lọc toàn diện loại bỏ tệp rác, nhật ký, cache và bảo vệ bí mật tuyệt đối
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. BẢO VỆ THÔNG TIN BÍ MẬT & MÔI TRƯỜNG CỤC BỘ (CRITICAL SECRETS)
+# ------------------------------------------------------------------------------
+# Chặn toàn bộ file môi trường chứa API Key thực tế của nhà phát triển
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ngoại lệ: Cho phép commit file mẫu để người khác clone về có template
+!.env.example
+!.env.sample
+!.env.template
+
+# Khóa bảo mật, chứng chỉ SSL/TLS và Private Keys
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+id_rsa
+id_ed25519
+id_dsa
+id_ecdsa
+service-account.json
+credentials.json
+secret.json
+auth_token.txt
+
+# ------------------------------------------------------------------------------
+# 2. NHẬT KÝ KIỂM TOÁN & DỮ LIỆU RUNTIME CỦA JOG (LOGS & RUNTIME DATA)
+# ------------------------------------------------------------------------------
+.jog/logs/
+.jog/*.log
+.jog/cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------------------------------------
+# 3. PYTHON ARTIFACTS & BYTECODE CACHE
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Cấu hình gói và bản build
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Môi trường ảo Python (Virtual Environments)
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Bộ nhớ đệm kiểm thử và phân tích tĩnh
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+htmlcov/
+.mypy_cache/
+.pytype/
+.ruff_cache/
+
+# ------------------------------------------------------------------------------
+# 4. TRÌNH SOẠN THẢO & IDE (EDITORS & IDES)
+# ------------------------------------------------------------------------------
+# Visual Studio Code & Cursor IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.cursor/
+*.code-workspace
+
+# JetBrains (PyCharm, IntelliJ, WebStorm)
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# ------------------------------------------------------------------------------
+# 5. TỆP TẠM HỆ ĐIỀU HÀNH (OS GENERATED FILES)
+# ------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ------------------------------------------------------------------------------
+# 6. THƯ MỤC THỬ NGHIỆM TẠM THỜI (SCRATCH & TEMPORARY FILES)
+# ------------------------------------------------------------------------------
+scratch/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo

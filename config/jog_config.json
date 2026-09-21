@@ -1,0 +1,29 @@
+{
+  "api": {
+    "typesafe_api_url": "https://api.typesafe.ai/v1/systemone",
+    "typesafe_api_key": null,
+    "timeout_seconds": 3.0,
+    "enable_offline_fallback": true
+  },
+  "proxy": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "upstream_anthropic_url": "https://api.anthropic.com",
+    "upstream_openai_url": "https://api.openai.com",
+    "block_on_reject": true
+  },
+  "git_hook": {
+    "leak_risk_threshold": 0.6,
+    "production_stability_threshold": 7.5,
+    "block_on_reject_verdict": true,
+    "ignored_paths": ["tests/*", "*.md", "demo.sh", "test_*.sh"]
+  },
+  "cli": {
+    "require_confirmation_on_warn": true,
+    "auto_abort_on_block": true
+  },
+  "logging": {
+    "audit_log_file": ".jog/logs/audit.log",
+    "log_level": "INFO"
+  }
+}
