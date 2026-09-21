@@ -464,27 +464,15 @@ def cmd_watch(args):
     BOLD = "[1m"
     RESET = "[0m"
 
-    # Khởi động máy chủ Web Dashboard và tự động mở trình duyệt
-    web_opened = False
-    try:
-        from jog.dashboard import start_dashboard_server
-        start_dashboard_server(8888, auto_open=True)
-        web_opened = True
-    except Exception:
-        pass
-
     print(f"{CYAN}{BOLD}╔═════════════════════════════════════════════════════════════════════════════╗{RESET}", flush=True)
-    print(f"{CYAN}{BOLD}║         🛡️   JEV GUARDRAIL (JOG) - REALTIME LIVE MONITOR                    ║{RESET}", flush=True)
-    print(f"{CYAN}{BOLD}║     Đang giám sát thời gian thực mọi luồng Prompt, Verdict & Edge Cases     ║{RESET}", flush=True)
+    print(f"{CYAN}{BOLD}║         🛡️   JEV GUARDRAIL (JOG) - TERMINAL REALTIME MONITOR                 ║{RESET}", flush=True)
+    print(f"{CYAN}{BOLD}║        Theo dõi trực tiếp mọi luồng Prompt, Verdict & Edge Cases            ║{RESET}", flush=True)
     print(f"{CYAN}{BOLD}╚═════════════════════════════════════════════════════════════════════════════╝{RESET}", flush=True)
     print(f"🎯 Dự án theo dõi  : {BOLD}{target_repo}{RESET}", flush=True)
-    if web_opened:
-        print(f"🌐 Màn hình Web UI : {GREEN}{BOLD}http://127.0.0.1:8888{RESET} {CYAN}(Đã tự động mở trình duyệt){RESET}", flush=True)
     print(f"📁 File nhật ký    : {log_file}", flush=True)
-    print(f"⚡ Trạng thái      : {GREEN}Đang lắng nghe! Mọi tương tác sẽ hiển thị trực tiếp tại đây.{RESET}", flush=True)
+    print(f"⚡ Trạng thái      : {GREEN}🟢 ĐANG LẮNG NGHE REALTIME TRỰC TIẾP TRÊN TERMINAL{RESET}", flush=True)
     print(f"🛑 Dừng giám sát   : Nhấn {YELLOW}Ctrl+C{RESET} để thoát.", flush=True)
-    print(f"{BLUE}-------------------------------------------------------------------------------{RESET}", flush=True)
-    # In 3 sự kiện gần nhất nếu có
+    print(f"{BLUE}-------------------------------------------------------------------------------{RESET}\n", flush=True)
     try:
         with open(log_file, "r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
