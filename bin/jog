@@ -464,16 +464,26 @@ def cmd_watch(args):
     BOLD = "[1m"
     RESET = "[0m"
 
-    print(f"{CYAN}{BOLD}╔═════════════════════════════════════════════════════════════════════════════╗{RESET}")
-    print(f"{CYAN}{BOLD}║         🛡️   JEV GUARDRAIL (JOG) - REALTIME LIVE MONITOR                    ║{RESET}")
-    print(f"{CYAN}{BOLD}║        Đang giám sát thời gian thực mọi luồng Prompt & Phản hồi...          ║{RESET}")
-    print(f"{CYAN}{BOLD}╚═════════════════════════════════════════════════════════════════════════════╝{RESET}")
-    print(f"🎯 Dự án theo dõi  : {BOLD}{target_repo}{RESET}")
-    print(f"📁 File nhật ký    : {log_file}")
-    print(f"⚡ Trạng thái      : {GREEN}Đang lắng nghe! Bạn chat với Agent trong IDE, sự kiện sẽ nhảy ở đây.{RESET}")
-    print(f"🛑 Dừng giám sát   : Nhấn {YELLOW}Ctrl+C{RESET} để thoát.")
-    print(f"{BLUE}-------------------------------------------------------------------------------{RESET}")
+    # Khởi động máy chủ Web Dashboard và tự động mở trình duyệt
+    web_opened = False
+    try:
+        from jog.dashboard import start_dashboard_server
+        start_dashboard_server(8888, auto_open=True)
+        web_opened = True
+    except Exception:
+        pass
 
+    print(f"{CYAN}{BOLD}╔═════════════════════════════════════════════════════════════════════════════╗{RESET}", flush=True)
+    print(f"{CYAN}{BOLD}║         🛡️   JEV GUARDRAIL (JOG) - REALTIME LIVE MONITOR                    ║{RESET}", flush=True)
+    print(f"{CYAN}{BOLD}║     Đang giám sát thời gian thực mọi luồng Prompt, Verdict & Edge Cases     ║{RESET}", flush=True)
+    print(f"{CYAN}{BOLD}╚═════════════════════════════════════════════════════════════════════════════╝{RESET}", flush=True)
+    print(f"🎯 Dự án theo dõi  : {BOLD}{target_repo}{RESET}", flush=True)
+    if web_opened:
+        print(f"🌐 Màn hình Web UI : {GREEN}{BOLD}http://127.0.0.1:8888{RESET} {CYAN}(Đã tự động mở trình duyệt){RESET}", flush=True)
+    print(f"📁 File nhật ký    : {log_file}", flush=True)
+    print(f"⚡ Trạng thái      : {GREEN}Đang lắng nghe! Mọi tương tác sẽ hiển thị trực tiếp tại đây.{RESET}", flush=True)
+    print(f"🛑 Dừng giám sát   : Nhấn {YELLOW}Ctrl+C{RESET} để thoát.", flush=True)
+    print(f"{BLUE}-------------------------------------------------------------------------------{RESET}", flush=True)
     # In 3 sự kiện gần nhất nếu có
     try:
         with open(log_file, "r", encoding="utf-8", errors="replace") as f:
@@ -642,7 +652,7 @@ def main():
     p_act.add_argument("-w", "--watch", action="store_true", help="Tự động mở màn hình giám sát Realtime ngay sau khi kích hoạt")
 
     # jog watch / monitor
-    p_watch = subparsers.add_parser("watch", aliases=["monitor", "live"], help="Giám sát thời gian thực mọi prompt và phản hồi từ AI Agent")
+    p_watch = subparsers.add_parser("watch", aliases=["monitor", "live", "ui", "dashboard"], help="Giám sát thời gian thực mọi prompt và phản hồi từ AI Agent")
     p_watch.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần theo dõi (Mặc định: tự nhận diện)")
     # jog console / chat / repl
     p_console = subparsers.add_parser("console", aliases=["chat", "repl", "interactive"], help="Bảng điều khiển tương tác Realtime liên tục")
