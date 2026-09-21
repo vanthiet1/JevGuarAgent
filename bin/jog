@@ -506,7 +506,7 @@ def cmd_status(args):
     """Hiển thị thông tin cấu hình và trạng thái hệ thống."""
     import socket
     JogLogger.print_banner()
-    target_repo = get_target_project()
+    target_repo = get_target_project(getattr(args, "target", None))
     rule_file = target_repo / ".agents" / "rules" / "jog_guardrail.md"
     hook_file = target_repo / ".git" / "hooks" / "pre-commit"
 
@@ -587,7 +587,8 @@ def main():
     p_audit.add_argument("-n", "--limit", type=int, default=20, help="Số dòng sự kiện hiển thị")
 
     # jog status
-    subparsers.add_parser("status", help="Kiểm tra trạng thái cấu hình JOG")
+    p_status = subparsers.add_parser("status", help="Kiểm tra trạng thái cấu hình JOG")
+    p_status.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần kiểm tra")
 
     # jog wrap
     p_wrap = subparsers.add_parser("wrap", help="Bọc thực thi lệnh terminal an toàn")
