@@ -17,8 +17,8 @@ Chỉ cần copy thư mục `JevGuarAgent` vào bất kỳ dự án nào, bạn 
 
 | Câu lệnh | Kênh tác động | Công dụng chi tiết |
 | :--- | :--- | :--- |
-| `guar active` | **Toàn diện** | **Bật khiên bảo vệ 1-Click** (Tự động liên kết IDE Rules `.agents/` & Git Pre-Commit Hook) |
-| `guar active -w` | **Toàn diện + Live** | **Bật bảo vệ & Mở Terminal Monitor Realtime** theo dõi trực tiếp mọi prompt gửi lên và phản hồi |
+| `guar active` | **Toàn diện + Realtime** | **Bật bảo vệ 1-Click & Tự động chạy Realtime Monitor** theo dõi trực tiếp mọi prompt gửi lên |
+| `guar active -d` | **Chạy ngầm** | Chỉ kích hoạt quy tắc bảo vệ dưới nền mà không giữ màn hình Realtime |
 | `guar watch` | **Realtime Monitor** | **Mở radar thời gian thực** (Tự động stream mọi prompt từ IDE, CLI, Git) |
 | `guar console` | **Interactive Prompt** | **Bảng điều khiển tương tác liên tục** (Gõ prompt liên tục và xem phản hồi tức thì) |
 | `guar status` | **Hệ thống** | **Kiểm tra trạng thái bảo vệ** (Rules IDE: BẬT/TẮT, Git Hook: BẬT/TẮT, Proxy: BẬT/TẮT) |

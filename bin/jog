@@ -296,6 +296,12 @@ exec python3 -m jog.pre_commit_guard "$@"
     print("🎉 KÍCH HOẠT THÀNH CÔNG! Dự án của bạn đã được bảo vệ toàn diện bởi JOG.")
     print("=" * 75 + "\n")
 
+    # Tự động chuyển sang màn hình Realtime Monitor ngay lập tức (không cần -w)
+    is_interactive = sys.stdin.isatty() and sys.stdout.isatty()
+    detach = getattr(args, "detach", False) or getattr(args, "no_watch", False)
+    if (is_interactive or getattr(args, "watch", False)) and not detach:
+        cmd_watch(args)
+
 
 def cmd_deactivate(args):
     """Hủy kích hoạt Jev Omnichannel Guardrail khỏi dự án."""
@@ -637,7 +643,8 @@ def main():
     # jog activate / active
     p_act = subparsers.add_parser("activate", aliases=["init", "enable", "active"], help="Kích hoạt toàn diện Guardrail cho dự án")
     p_act.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần bảo vệ (Mặc định: tự nhận diện)")
-    p_act.add_argument("-w", "--watch", action="store_true", help="Tự động mở màn hình giám sát Realtime ngay sau khi kích hoạt")
+    p_act.add_argument("-w", "--watch", action="store_true", help="Mở màn hình giám sát Realtime (Mặc định đã tự động bật)")
+    p_act.add_argument("-d", "--detach", "--no-watch", action="store_true", help="Chỉ kích hoạt bảo vệ mà không mở màn hình Realtime")
 
     # jog watch / monitor
     p_watch = subparsers.add_parser("watch", aliases=["monitor", "live", "ui", "dashboard"], help="Giám sát thời gian thực mọi prompt và phản hồi từ AI Agent")
