@@ -254,20 +254,22 @@ cp .env.example .env
 ```
 
 #### 2. Các biến cấu hình chính trong `.env`:
+
+> 💡 **Quan trọng:** Bạn **CHỈ CẦN quan tâm API Key** (`OPENROUTER_API_KEY`)! JEV Guardrail đã tự động định tuyến và quản lý model AI Reasoning tối ưu ngầm bên dưới (mặc định DeepSeek Chat siêu nhanh & chi phí tối ưu), nhà phát triển hoàn toàn không cần bận tâm hay cấu hình model.
+
 ```env
-# 1. API Key từ OpenRouter (Khuyên dùng) hoặc TypeSafe
+# 1. API Key từ OpenRouter (Chỉ cần duy nhất key này là đủ hoạt động 100%)
 OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# (Tùy chọn) Khóa TypeSafe Enterprise nếu có
 TYPESAFE_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# 2. Model LLM muốn sử dụng (Mặc định: deepseek/deepseek-chat hoặc anthropic/claude-3.5-sonnet)
-JOG_LLM_MODEL=deepseek/deepseek-chat
-
-# 3. Cấu hình Local Proxy & Audit Log (Mặc định đã tối ưu)
+# 2. Cấu hình Local Proxy & Audit Log (Mặc định đã tối ưu)
 JOG_PROXY_HOST=127.0.0.1
 JOG_PROXY_PORT=8080
 JOG_AUDIT_LOG=.jog/logs/audit.log
 
-# 4. Ngưỡng cảnh báo an toàn
+# 3. Ngưỡng cảnh báo an toàn
 JOG_LEAK_THRESHOLD=0.6
 JOG_STABILITY_THRESHOLD=7.5
 ```
@@ -298,9 +300,9 @@ JOG_STABILITY_THRESHOLD=7.5
      ```env
      OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
      ```
-7. *(Tùy chọn nạp Credit / Sử dụng Model Miễn Phí):*
-   - Bạn có thể vào mục [Credits](https://openrouter.ai/credits) nạp $5 - $10 để dùng các model trả phí cao cấp như `anthropic/claude-3.5-sonnet`.
-   - Hoặc dùng các mô hình chi phí siêu rẻ / miễn phí: `deepseek/deepseek-chat`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash`.
+7. **Tự động kích hoạt phòng thủ:**
+   - JEV Guardrail tự động kết nối và vận hành trên nền tảng AI Reasoning tối ưu ngầm bên dưới.
+   - Bạn không cần cấu hình thêm bất kỳ thiết lập model phức tạp nào, hệ thống sẵn sàng hoạt động ngay lập tức!
 
 > 💡 **Project-Level Discovery:** JevGuarAgent có cơ chế tự động tìm kiếm `.env` thông minh. Bạn có thể đặt file `.env` tại thư mục của `JevGuarAgent` HOẶC đặt trong thư mục dự án mục tiêu bạn đang phát triển (`wedding-manager`, `ecommerce`, ...), hệ thống đều tự động nhận diện chính xác!
 
