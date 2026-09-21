@@ -19,7 +19,8 @@ Chỉ cần copy thư mục `JevGuarAgent` vào bất kỳ dự án nào, bạn 
 | :--- | :--- | :--- |
 | `guar active` | **Toàn diện** | **Bật khiên bảo vệ 1-Click** (Tự động liên kết IDE Rules `.agents/` & Git Pre-Commit Hook) |
 | `guar active -w` | **Toàn diện + Live** | **Bật bảo vệ & Mở Terminal Monitor Realtime** theo dõi trực tiếp mọi prompt gửi lên và phản hồi |
-| `guar watch` | **Realtime Monitor** | **Mở màn hình giám sát thời gian thực** (Live stream prompt, rủi ro, dự đoán edge cases) |
+| `guar watch` | **Realtime Monitor** | **Mở radar thời gian thực** (Tự động stream mọi prompt từ IDE, CLI, Git) |
+| `guar console` | **Interactive Prompt** | **Bảng điều khiển tương tác liên tục** (Gõ prompt liên tục và xem phản hồi tức thì) |
 | `guar status` | **Hệ thống** | **Kiểm tra trạng thái bảo vệ** (Rules IDE: BẬT/TẮT, Git Hook: BẬT/TẮT, Proxy: BẬT/TẮT) |
 | `guar check prompt "<lệnh/ý định>"` | **Prompt & CLI** | Quét mức độ phá hoại, rò rỉ secret và **phỏng đoán toàn bộ edge cases kiến trúc** |
 | `guar check code "<tệp/đoạn mã>"` | **Mã nguồn (AST)** | Quét lỗ hổng tiềm ẩn: SQLi, N+1 Query, Resource Leak, Race Condition, Missing Timeout |

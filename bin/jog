@@ -345,7 +345,7 @@ def _print_monitor_event(entry: Dict[str, Any]):
     verdict = entry.get("verdict", "")
     risk_score = entry.get("risk_score", 0.0)
     details = entry.get("details", {})
-    raw_snippet = entry.get("raw_snippet", "").strip()
+    raw_snippet = (entry.get("snippet_preview") or entry.get("raw_snippet") or "").strip()
 
     if verdict in ("allow", "pass"):
         v_badge = f"{GREEN}{BOLD}[✓ AN TOÀN: {verdict.upper()}]{RESET}"
@@ -363,6 +363,10 @@ def _print_monitor_event(entry: Dict[str, Any]):
         print(f'  💬 {BOLD}Nội dung:{RESET} "{snippet_display}"')
 
     advisory = details.get("predicted_edge_cases")
+    if advisory:
+        if not isinstance(advisory, dict) and hasattr(advisory, "intent_description"):
+            from dataclasses import asdict
+            advisory = asdict(advisory)
     if advisory and isinstance(advisory, dict):
         desc = advisory.get("intent_description", "")
         print(f"  🧠 {MAGENTA}{BOLD}Intent nhận diện:{RESET} {desc}")
@@ -387,6 +391,62 @@ def _print_monitor_event(entry: Dict[str, Any]):
         print(f"  💡 {CYAN}{BOLD}Hướng dẫn sửa đổi:{RESET} {remediation}")
 
     print(f"{BLUE}-------------------------------------------------------------------------------{RESET}")
+
+
+
+def cmd_console(args):
+    """Chế độ bảng điều khiển tương tác Realtime liên tục (Interactive Prompt Console)."""
+    config = load_config()
+    engine = JevEngine(config)
+    
+    CYAN = "\033[36m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+
+    print(f"{CYAN}{BOLD}╔═════════════════════════════════════════════════════════════════════════════╗{RESET}")
+    print(f"{CYAN}{BOLD}║        🛡️   JEV GUARDRAIL (JOG) - INTERACTIVE REALTIME CONSOLE               ║{RESET}")
+    print(f"{CYAN}{BOLD}║     Theo dõi tiến trình và phản hồi Realtime liên tục cho từng Prompt       ║{RESET}")
+    print(f"{CYAN}{BOLD}╚═════════════════════════════════════════════════════════════════════════════╝{RESET}")
+    print(f"💡 {YELLOW}Gõ bất kỳ câu lệnh hoặc mô tả tính năng nào để xem Guardrail phản hồi ngay.{RESET}")
+    print(f"🛑 Gõ {BOLD}'exit'{RESET} hoặc {BOLD}'quit'{RESET} để thoát.\n")
+
+    while True:
+        try:
+            user_input = input(f"{CYAN}{BOLD}jog-prompt > {RESET}").strip()
+            if not user_input:
+                continue
+            if user_input.lower() in ("exit", "quit", "q"):
+                print(f"{YELLOW}👋 Tạm biệt! Đã thoát khỏi JOG Console.{RESET}")
+                break
+
+            # Phân tích an toàn qua JevEngine
+            res = engine.check_prompt_and_action(user_input, channel="interactive_console")
+            
+            # Giả lập sự kiện để in qua giao diện chuẩn
+            event = {
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "event_type": "prompt_and_action_check",
+                "channel": "interactive_console",
+                "verdict": res.action_verdict,
+                "risk_score": res.destructive_intent_score,
+                "snippet_preview": user_input,
+                "details": {
+                    "has_credential_leak": res.has_credential_leak,
+                    "engine_source": res.engine_source,
+                    "issues": res.details,
+                    "remediation": res.remediation,
+                    "predicted_edge_cases": getattr(res, "predicted_edge_cases", None) or engine.predict_architecture_advisory(user_input)
+                }
+            }
+            _print_monitor_event(event)
+            sys.stdout.flush()
+
+        except (KeyboardInterrupt, EOFError):
+            print(f"\n{YELLOW}👋 Đã thoát khỏi JOG Console.{RESET}")
+            break
 
 
 def cmd_watch(args):
@@ -430,22 +490,51 @@ def cmd_watch(args):
     except Exception:
         pass
 
-    # Lắng nghe thời gian thực (tail -f)
+    # Danh sách các file audit log cần theo dõi đồng thời
+    watch_files = [log_file]
+    wedding_log = Path("/run/media/thietnv/Data/Demo/wedding-manager/.jog/logs/audit.log")
+    if wedding_log.exists() and wedding_log not in watch_files:
+        watch_files.append(wedding_log)
+
+    file_offsets = {}
+    for wf in watch_files:
+        try:
+            file_offsets[wf] = wf.stat().st_size if wf.exists() else 0
+        except Exception:
+            file_offsets[wf] = 0
+
     try:
-        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
-            f.seek(0, os.SEEK_END)
-            while True:
-                line = f.readline()
-                if not line:
-                    time.sleep(0.2)
+        while True:
+            found_data = False
+            for wf in watch_files:
+                if not wf.exists():
                     continue
                 try:
-                    entry = json.loads(line.strip())
-                    _print_monitor_event(entry)
+                    cur_size = wf.stat().st_size
                 except Exception:
                     continue
+                last_offset = file_offsets.get(wf, 0)
+                if cur_size > last_offset:
+                    found_data = True
+                    try:
+                        with open(wf, "r", encoding="utf-8", errors="replace") as f:
+                            f.seek(last_offset)
+                            new_lines = f.readlines()
+                            file_offsets[wf] = f.tell()
+                            for nl in new_lines:
+                                if nl.strip():
+                                    try:
+                                        entry = json.loads(nl.strip())
+                                        _print_monitor_event(entry)
+                                        sys.stdout.flush()
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
+            if not found_data:
+                time.sleep(0.25)
     except KeyboardInterrupt:
-        print(f"{YELLOW}👋 Đã dừng chế độ giám sát Realtime.{RESET}")
+        print(f"\n{YELLOW}👋 Đã dừng chế độ giám sát Realtime.{RESET}")
 
 
 def cmd_install_hook(args):
@@ -555,6 +644,10 @@ def main():
     # jog watch / monitor
     p_watch = subparsers.add_parser("watch", aliases=["monitor", "live"], help="Giám sát thời gian thực mọi prompt và phản hồi từ AI Agent")
     p_watch.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần theo dõi (Mặc định: tự nhận diện)")
+    # jog console / chat / repl
+    p_console = subparsers.add_parser("console", aliases=["chat", "repl", "interactive"], help="Bảng điều khiển tương tác Realtime liên tục")
+    p_console.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án")
+
 
     # jog deactivate / deactive
     p_deact = subparsers.add_parser("deactivate", aliases=["disable", "deactive"], help="Hủy kích hoạt Guardrail khỏi dự án")
@@ -603,6 +696,8 @@ def main():
         cmd_deactivate(args)
     elif args.subcommand in ("watch", "monitor", "live"):
         cmd_watch(args)
+    elif args.subcommand in ("console", "chat", "repl", "interactive"):
+        cmd_console(args)
     elif args.subcommand == "proxy":
         cmd_proxy_start(args)
     elif args.subcommand == "check":
