@@ -248,9 +248,9 @@ python3 tests/run_all_tests.py
 > Khi cung cấp thêm **OpenRouter API Key**, hệ thống sẽ kích hoạt thêm khả năng suy luận ngữ cảnh sâu từ các mô hình AI tiên tiến nhất (Claude 3.5 Sonnet, DeepSeek V3, GPT-4o, Gemini 2.0 Flash) để phân tích logic nghiệp vụ phức tạp.
 
 #### 1. Tạo tệp `.env`:
-Sao chép từ tệp mẫu `.env.example` đã chuẩn bị sẵn:
+Tạo tệp `.env` tại thư mục dự án để lưu API Key:
 ```bash
-cp .env.example .env
+echo "OPENROUTER_API_KEY=sk-or-v1-your-key-here" > .env
 ```
 
 #### 2. Các biến cấu hình chính trong `.env`:
@@ -411,7 +411,6 @@ my-project/ (hoặc wedding-manager/)           <-- 📁 Thư mục gốc của 
 │   │   ├── logger.py                         # Trình ghi log kiểm toán & giao diện ANSI Terminal Monitor
 │   │   └── pre_commit_guard.py               # Module bảo vệ tầng Git trước khi commit
 │   ├── tests/                                <-- 🧪 Bộ kiểm thử tự động toàn diện (32/32 tests passed)
-│   ├── .env.example                          <-- File mẫu cấu hình biến môi trường
 │   ├── .env                                  <-- File chứa OPENROUTER_API_KEY (Được .gitignore bảo vệ tuyệt đối)
 │   ├── guar                                  <-- Trình khởi chạy nhanh trực tiếp tại chỗ
 │   ├── install.sh                            <-- Script cài đặt toàn cục 1-Click
