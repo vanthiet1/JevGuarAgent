@@ -210,63 +210,145 @@ Chặn đứng việc vô tình commit file `.env`, private key hoặc mã ngu�
 
 ---
 
-## 🚀 4. Hướng Dẫn Từng Bước Thực Hiện (Step-by-Step Guide)
+## 🚀 4. Hướng Dẫn Cài Đặt & Sử Dụng Từ A Đến Z (Step-by-Step Guide)
 
-### Bước 1: Cài đặt công cụ ban đầu (1 lần duy nhất trên máy)
-Chạy script cài đặt tại thư mục của `JevGuarAgent`:
+### Bước 1: Clone mã nguồn dự án về máy
+Mở terminal và clone repository về máy tính của bạn:
+```bash
+git clone https://github.com/vanthiet1/JevGuarAgent.git
+cd JevGuarAgent
+```
+
+---
+
+### Bước 2: Cài đặt và kích hoạt bộ công cụ toàn cục
+Chạy script cài đặt tự động 1-Click:
 ```bash
 bash install.sh
 source ~/.bashrc
 ```
-Script sẽ tự động tạo lệnh toàn cục `guar` và `guard` trong `~/.local/bin`, phân quyền thực thi cho các file nhị phân và chuẩn bị thư mục logs.
+> 💡 **Tác vụ thực thi tự động:**
+> - Tự động đăng ký các lệnh toàn cục `guar`, `guard`, `jog` vào thư mục `~/.local/bin`.
+> - Cấp quyền thực thi (`chmod +x`) cho toàn bộ launcher và module nhị phân.
+> - Giờ đây bạn có thể đứng ở **bất kỳ thư mục nào** trên máy tính và gõ trực tiếp `guar`!
+
+Kiểm tra bộ test tự động để đảm bảo môi trường đạt 100% tiêu chuẩn an toàn:
+```bash
+python3 tests/run_all_tests.py
+# Kết quả mong đợi: 32/32 tests PASSED!
+```
 
 ---
 
-### Bước 2: Kích hoạt bảo vệ cho bất kỳ dự án nào (`guar active`)
-Mỗi khi bạn tạo hoặc clone một dự án mới (ví dụ: `my-web-app`, `ecommerce`, `wedding-manager`), bạn chỉ cần:
+### Bước 3: Cấu hình Biến Môi Trường (.env) & Hướng Dẫn Lấy API Key Từ OpenRouter
+
+#### 🛡️ Triết lý Zero-Trust:
+> **Lưu ý quan trọng:** JevGuarAgent hoạt động **100% độc lập ở chế độ Offline (Local Fallback)** mà không cần kết nối mạng hay bất kỳ API key nào (vẫn quét regex SecOps, phân tích AST Python, và phỏng đoán 9 domain kiến trúc cực chuẩn).  
+> Khi cung cấp thêm **OpenRouter API Key**, hệ thống sẽ kích hoạt thêm khả năng suy luận ngữ cảnh sâu từ các mô hình AI tiên tiến nhất (Claude 3.5 Sonnet, DeepSeek V3, GPT-4o, Gemini 2.0 Flash) để phân tích logic nghiệp vụ phức tạp.
+
+#### 1. Tạo tệp `.env`:
+Sao chép từ tệp mẫu `.env.example` đã chuẩn bị sẵn:
 ```bash
-# Cách 1: Đứng tại thư mục dự án cần bảo vệ và gõ:
+cp .env.example .env
+```
+
+#### 2. Các biến cấu hình chính trong `.env`:
+```env
+# 1. API Key từ OpenRouter (Khuyên dùng) hoặc TypeSafe
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TYPESAFE_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# 2. Model LLM muốn sử dụng (Mặc định: deepseek/deepseek-chat hoặc anthropic/claude-3.5-sonnet)
+JOG_LLM_MODEL=deepseek/deepseek-chat
+
+# 3. Cấu hình Local Proxy & Audit Log (Mặc định đã tối ưu)
+JOG_PROXY_HOST=127.0.0.1
+JOG_PROXY_PORT=8080
+JOG_AUDIT_LOG=.jog/logs/audit.log
+
+# 4. Ngưỡng cảnh báo an toàn
+JOG_LEAK_THRESHOLD=0.6
+JOG_STABILITY_THRESHOLD=7.5
+```
+
+#### 3. Hướng dẫn chi tiết từng bước lấy API Key từ OpenRouter.ai:
+1. **Truy cập trang chủ:** Mở trình duyệt và truy cập [https://openrouter.ai/](https://openrouter.ai/).
+2. **Đăng ký / Đăng nhập:**
+   - Bấm vào nút **Sign In** (hoặc **Sign Up**) ở góc trên cùng bên phải.
+   - Bạn có thể đăng nhập nhanh bằng tài khoản **Google** hoặc **GitHub**.
+3. **Mở trang quản lý Keys:**
+   - Nhấp vào biểu tượng **Avatar tài khoản** ở góc trên cùng bên phải ➔ Chọn **Keys**.
+   - Hoặc truy cập đường link trực tiếp: [https://openrouter.ai/settings/keys](https://openrouter.ai/settings/keys).
+4. **Tạo API Key mới:**
+   - Bấm nút **"Create Key"**.
+   - Đặt tên gợi nhớ cho key (ví dụ: `JevGuarAgent`).
+   - *(Tùy chọn)* Đặt Credit Limit nếu muốn giới hạn hạn mức chi tiêu.
+   - Bấm nút **Create**.
+5. **Sao chép Key:**
+   - Một chuỗi token có tiền tố `sk-or-v1-...` sẽ xuất hiện trên màn hình. Bấm **Copy**.
+   - ⚠️ *Lưu ý: Chuỗi key chỉ hiển thị 1 lần duy nhất lúc tạo vì lý do an toàn.*
+6. **Dán Key vào `.env`:**
+   - Mở tệp `.env` và dán chuỗi vừa copy vào:
+     ```env
+     OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+     ```
+7. *(Tùy chọn nạp Credit / Sử dụng Model Miễn Phí):*
+   - Bạn có thể vào mục [Credits](https://openrouter.ai/credits) nạp $5 - $10 để dùng các model trả phí cao cấp như `anthropic/claude-3.5-sonnet`.
+   - Hoặc dùng các mô hình chi phí siêu rẻ / miễn phí: `deepseek/deepseek-chat`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash`.
+
+> 💡 **Project-Level Discovery:** JevGuarAgent có cơ chế tự động tìm kiếm `.env` thông minh. Bạn có thể đặt file `.env` tại thư mục của `JevGuarAgent` HOẶC đặt trong thư mục dự án mục tiêu bạn đang phát triển (`wedding-manager`, `ecommerce`, ...), hệ thống đều tự động nhận diện chính xác!
+
+---
+
+### Bước 4: Kích hoạt bảo vệ cho bất kỳ dự án nào (`guar active`)
+Mỗi khi bạn tạo hoặc clone một dự án mã nguồn mới cần bảo vệ (ví dụ: `wedding-manager`, `ecommerce`, `crm-api`), bạn chỉ cần:
+
+```bash
+# Cách 1: Đứng tại thư mục dự án và bật bảo vệ 1-Click:
 guar active
 
-# Cách 2: Hoặc chỉ định đường dẫn cụ thể:
+# Cách 2: Bật bảo vệ đồng thời mở Terminal Monitor Realtime quan sát trực tiếp:
+guar active -w
+
+# Cách 3: Hoặc chỉ định đường dẫn cụ thể từ bất kỳ đâu:
 guar active /path/to/my-project
 ```
-> 🎉 **Xong!** Dự án của bạn lập tức được kích hoạt đồng thời cả **AI Agent IDE Rules** và **Git Pre-commit Hook**.
+> 🎉 **Xong!** Dự án của bạn lập tức được kích hoạt đồng thời cả **AI Agent IDE Rules** (`.agents/`) và **Git Pre-commit Hook** (`.git/hooks/pre-commit`).
 
 ---
 
-### Bước 3: Cấu hình TypeSafe API Key (Tùy chọn)
-JOG hoạt động **hoàn hảo 100% ở chế độ Offline (Zero-Trust Fallback)** mà không cần kết nối mạng hay API key.  
-Nếu bạn muốn sử dụng thêm sức mạnh Cloud Analytics từ TypeSafe AI, chỉ cần thêm vào file `.env` hoặc `.env.local` của chính dự án bạn đang làm việc:
-```env
-TYPESAFE_API_KEY="your_typesafe_api_key_here"
+### Bước 5: Mở Màn Hình Giám Sát Thời Gian Thực (`guar watch`)
+Để theo dõi luồng prompt gửi lên, rủi ro bị chặn và các edge cases được phỏng đoán tức thì:
+```bash
+guar watch
+# (Hoặc alias: guar monitor, guar live)
 ```
-JOG có cơ chế **Project-Level Discovery**, sẽ tự động đọc file `.env` của dự án hiện tại mà không cần cấu hình biến môi trường toàn cục.
+> 💡 *Mẹo:* Hãy mở một cửa sổ/tab terminal riêng (Split Pane) và chạy lệnh này để xem radar bảo vệ hoạt động liên tục!
 
 ---
 
-### Bước 4: Tương tác cùng AI Agent trong IDE (Cursor, Antigravity, VS Code)
+### Bước 6: Tương tác cùng AI Agent trong IDE (Cursor, Antigravity, VS Code, Claude Code)
 
 Có 2 cách tích hợp tùy theo nhu cầu của bạn:
 
 #### Cách A: Tích hợp tự nhiên qua `.agents/` (Khuyên dùng)
-* Sau khi chạy `guar active`, thư mục `.agents/rules/jog_guardrail.md` đã sẵn sàng.
-* Bạn chat và ra lệnh cho Agent như bình thường. Agent sẽ tự động gọi ngầm `guar check prompt` và `guar check code` trước mỗi thao tác để kiểm duyệt an toàn và phỏng đoán edge cases.
+* Sau khi chạy `guar active`, các tệp `.agents/rules/jog_guardrail.md` và `.agents/skills/jog-guard/SKILL.md` đã tự động liên kết vào dự án.
+* Bạn chỉ cần chat và giao nhiệm vụ cho Agent như bình thường. Agent sẽ tự động tham khảo guardrail trước khi đề xuất hoặc thực thi mã lệnh.
 
 #### Cách B: Chặn cứng tầng mạng qua Local Proxy (:8080)
 1. Khởi động Proxy:
    ```bash
    guar proxy start --port 8080
-   # Hoặc chạy ngầm:
+   # Hoặc chạy ngầm dưới nền:
    nohup guar proxy start --port 8080 > .jog/logs/proxy.log 2>&1 &
    ```
-2. Cấu hình IDE (Cursor Settings / Antigravity / Continue):
-   * Đặt **Base URL** của Model thành: `http://127.0.0.1:8080/v1`
-   * Mọi request chat sẽ đi xuyên qua JOG Proxy. Nếu code lỗi, Proxy ném mã `HTTP 403` bắt Agent tự sửa lại code trước khi hiển thị cho bạn.
+2. Cấu hình IDE (Cursor Settings / Continue / Antigravity):
+   * Đặt **Base URL** của LLM Provider thành: `http://127.0.0.1:8080/v1`
+   * Mọi request chat sẽ đi xuyên qua JOG Proxy. Nếu phát hiện code lỗi hoặc nguy hiểm, Proxy lập tức trả về mã `HTTP 403` kích hoạt cơ chế Self-Correction bắt Agent tự sửa lại mã nguồn an toàn trước khi hiển thị cho bạn.
 
 ---
 
-### Bước 5: Kiểm tra và xem nhật ký kiểm toán
+### Bước 7: Kiểm tra trạng thái & Nhật ký kiểm toán bảo mật
 ```bash
 # Xem trạng thái kích hoạt của dự án:
 guar status
@@ -277,7 +359,7 @@ guar audit
 # Thử nghiệm quét lệnh shell thủ công:
 guar check prompt "rm -rf /"
 
-# Thử nghiệm quét file mã nguồn:
+# Thử nghiệm quét file mã nguồn tìm lỗi tiềm ẩn:
 guar check code "src/lib/db.ts"
 ```
 
