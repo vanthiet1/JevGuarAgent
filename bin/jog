@@ -179,10 +179,6 @@ def get_target_project(target_arg=None) -> Path:
 def cmd_activate(args):
     """Kích hoạt toàn diện Jev Omnichannel Guardrail cho dự án."""
     target_repo = get_target_project(getattr(args, "target", None))
-    print("\n" + "=" * 75)
-    print("🛡️  ĐANG KÍCH HOẠT JEV OMNICHANNEL GUARDRAIL (JOG)...")
-    print("=" * 75)
-    print(f"🎯 Dự án mục tiêu: {target_repo}\n")
 
     jog_bin = BASE_DIR / "bin" / "jog"
     try:
@@ -290,8 +286,6 @@ Chạy lệnh sau để Jev chẩn đoán:
         f.write(rule_content)
     with open(skill_file, "w", encoding="utf-8") as f:
         f.write(skill_content)
-    print(f"  [✓] AI Agent IDE Rules   : ĐÃ BẬT ({rule_file.relative_to(target_repo)})")
-    print(f"  [✓] AI Agent IDE Skills  : ĐÃ BẬT ({skill_file.relative_to(target_repo)})")
 
     # 2. Cấu hình VS Code (.vscode/settings.json) cho Terminal, Claude Code và Codex
     vscode_dir = target_repo / ".vscode"
@@ -323,7 +317,6 @@ Chạy lệnh sau để Jev chẩn đoán:
     try:
         with open(vscode_settings, "w", encoding="utf-8") as f:
             json.dump(settings_data, f, indent=2, ensure_ascii=False)
-        print(f"  [✓] VS Code Tích Hợp     : ĐÃ BẬT ({vscode_settings.relative_to(target_repo)})")
     except Exception:
         pass
 
@@ -365,14 +358,9 @@ sys.exit(execute_pre_commit_guard())
             os.chmod(hook_file, 0o755)
         except Exception:
             pass
-        print(f"  [✓] Git Pre-Commit Guard : ĐÃ BẬT ({hook_file.relative_to(target_repo)})")
-    else:
-        print(f"  [-] Git Pre-Commit Guard : BỎ QUA (Không tìm thấy thư mục .git tại {target_repo})")
-
     # 4. Tạo thư mục audit log
     logs_dir = target_repo / ".jog" / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
-    print(f"  [✓] Nhật ký kiểm toán    : ĐÃ SẴN SÀNG ({logs_dir.relative_to(target_repo)}/)")
 
     # 5. Tự động đăng ký toàn bộ CLI shims (guar, claude, codex, gemini) toàn cục
     try:
@@ -393,7 +381,6 @@ fi
                 with open(tool_file, "w", encoding="utf-8") as f:
                     f.write(script_content)
                 tool_file.chmod(0o755)
-            print(f"  [✓] Global CLI Shims     : ĐÃ ĐĂNG KÝ (guar, claude, codex, gemini -> {local_bin})")
         else:
             win_apps = Path.home() / "AppData" / "Local" / "Microsoft" / "WindowsApps"
             if win_apps.exists():
@@ -401,22 +388,16 @@ fi
                     cmd_f = win_apps / f"{tool}.cmd"
                     with open(cmd_f, "w", encoding="utf-8") as f:
                         f.write(f'@echo off\r\ncall "{BASE_DIR}\\bin\\{tool}.cmd" %*\r\n')
-                print(f"  [✓] Global CLI Shims     : ĐÃ ĐĂNG KÝ ({win_apps})")
     except Exception:
         pass
-
-    print("\n" + "=" * 75)
-    print("🎉 KÍCH HOẠT THÀNH CÔNG! Dự án của bạn đã được bảo vệ toàn diện bởi JOG.")
-    print("   • Terminal CLI Shims (claude, codex, gemini) : SẴN SÀNG")
-    print("   • VS Code & Claude Code / Codex Tracking     : ĐÃ TÍCH HỢP")
-    print("   • Git Pre-Commit Security Guard              : ĐANG BẢO VỆ")
-    print("=" * 75 + "\n")
 
     # Tự động chuyển sang màn hình Realtime Monitor ngay lập tức (không cần -w)
     is_interactive = sys.stdin.isatty() and sys.stdout.isatty()
     detach = getattr(args, "detach", False) or getattr(args, "no_watch", False)
     if (is_interactive or getattr(args, "watch", False)) and not detach:
         cmd_watch(args)
+    else:
+        print("🛡️  [✓] Jev Guardrail: Đã kích hoạt bảo vệ toàn hệ thống khi Vibe Code!")
 
 
 def cmd_deactivate(args):
@@ -613,28 +594,12 @@ def cmd_watch(args):
     RESET = "[0m"
 
     print(f"{CYAN}{BOLD}╔═════════════════════════════════════════════════════════════════════════════╗{RESET}", flush=True)
-    print(f"{CYAN}{BOLD}║         🛡️   JEV GUARDRAIL (JOG) - TERMINAL REALTIME MONITOR                 ║{RESET}", flush=True)
-    print(f"{CYAN}{BOLD}║        Theo dõi trực tiếp mọi luồng Prompt, Verdict & Edge Cases            ║{RESET}", flush=True)
+    print(f"{CYAN}{BOLD}║                  🛡️   JEV GUARDRAIL - VIBE CODING MONITOR                  ║{RESET}", flush=True)
+    print(f"{CYAN}{BOLD}║     Giám sát và giúp agent sinh mã nguồn chất lượng và tiết kiệm token      ║{RESET}", flush=True)
     print(f"{CYAN}{BOLD}╚═════════════════════════════════════════════════════════════════════════════╝{RESET}", flush=True)
-    print(f"🎯 Dự án theo dõi  : {BOLD}{target_repo}{RESET}", flush=True)
-    print(f"📁 File nhật ký    : {log_file}", flush=True)
-    print(f"⚡ Trạng thái      : {GREEN}🟢 ĐANG LẮNG NGHE REALTIME TRỰC TIẾP TRÊN TERMINAL{RESET}", flush=True)
-    print(f"🛑 Dừng giám sát   : Nhấn {YELLOW}Ctrl+C{RESET} để thoát.", flush=True)
+    print(f"🎯 Phạm vi theo dõi : {BOLD}Toàn hệ thống khi Vibe Code{RESET} (Cursor, VS Code, CLI, Git)", flush=True)
+    print(f"⚡ Trạng thái       : {GREEN}🟢 ĐANG LẮNG NGHE REALTIME{RESET} (Nhấn {YELLOW}Ctrl+C{RESET} để dừng)", flush=True)
     print(f"{BLUE}-------------------------------------------------------------------------------{RESET}\n", flush=True)
-    try:
-        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
-            lines = f.readlines()
-            if lines:
-                print(f"{YELLOW}📋 [Sự kiện gần nhất trước đó]:{RESET}")
-                for l in lines[-3:]:
-                    try:
-                        e = json.loads(l.strip())
-                        _print_monitor_event(e)
-                    except Exception:
-                        pass
-                print(f"{GREEN}🟢 Đang chờ sự kiện mới theo thời gian thực...{RESET}")
-    except Exception:
-        pass
 
     # Danh sách các file audit log cần theo dõi đồng thời (cục bộ + toàn cục)
     global_log = Path.home() / ".jog" / "logs" / "audit.log"
