@@ -28,6 +28,26 @@ from jog.config import load_config
 from jog.logger import JogLogger, get_logger
 from jog.jev_engine import JevEngine
 from jog.intercept_cli import run_cli_interceptor
+import re
+from typing import Any, Dict
+
+
+def format_colored_json(obj: Any, indent_prefix: str = "    ") -> str:
+    """Định dạng JSON có màu ANSI đẹp mắt cho Terminal."""
+    CYAN = "\033[36m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    RESET = "\033[0m"
+
+    raw = json.dumps(obj, indent=2, ensure_ascii=False)
+    colored_lines = []
+    for line in raw.splitlines():
+        l = re.sub(r'(".*?")(?=\s*:)', f"{CYAN}\\1{RESET}", line)
+        l = re.sub(r'(:\s*)(".*?")', f"\\1{GREEN}\\2{RESET}", l)
+        l = re.sub(r'(:\s*)(true|false|null|-?\d+(?:\.\d+)?)', f"\\1{YELLOW}\\2{RESET}", l)
+        l = re.sub(r'(^\s*)(".*?")(,?)$', f"\\1{GREEN}\\2{RESET}\\3", l)
+        colored_lines.append(indent_prefix + l)
+    return "\n".join(colored_lines)
 
 
 def cmd_check_prompt(args):
@@ -76,6 +96,12 @@ def cmd_check_prompt(args):
         print("\n  📌 Chỉ thị quy chuẩn cho Agent:")
         for line in advisory.injected_prompt_directive.splitlines():
             print(f"      {line}")
+
+    out_dict = res.to_dict()
+    if advisory:
+        out_dict["predicted_edge_cases"] = advisory.to_dict()
+    print("\n📦 [JEV ENGINE JSON PHẢN HỒI]:")
+    print(format_colored_json(out_dict, indent_prefix="  "))
 
     print("=" * 65 + "\n")
 
@@ -478,23 +504,29 @@ def _print_monitor_event(entry: Dict[str, Any]):
             snippet_display = snippet_display[:107] + '...'
         print(f'  💬 {BOLD}Nội dung:{RESET} "{snippet_display}"')
 
+    # Trích xuất hoặc dựng lại JSON kết quả trả về từ Jev Engine
+    jev_response = details.get("jev_response")
     advisory = details.get("predicted_edge_cases")
-    if advisory:
-        if not isinstance(advisory, dict) and hasattr(advisory, "intent_description"):
-            from dataclasses import asdict
-            advisory = asdict(advisory)
-    if advisory and isinstance(advisory, dict):
-        desc = advisory.get("intent_description", "")
-        print(f"  🧠 {MAGENTA}{BOLD}Intent nhận diện:{RESET} {desc}")
-        risk_factors = advisory.get("risk_factors", [])
-        if risk_factors:
-            print(f"  ⚠️  {YELLOW}{BOLD}Edge Cases phỏng đoán:{RESET}")
-            for rf in risk_factors[:3]:
-                print(f"      - {rf}")
-        recs = advisory.get("recommended_patterns", [])
-        if recs:
-            print(f"  ✓  {GREEN}{BOLD}Kiến trúc đề xuất:{RESET} {recs[0]}")
+    if advisory and not isinstance(advisory, dict) and hasattr(advisory, "intent_description"):
+        from dataclasses import asdict
+        advisory = asdict(advisory)
 
+    if not jev_response:
+        jev_response = {
+            "action_verdict": verdict,
+            "destructive_intent_score": risk_score,
+            "has_credential_leak": details.get("has_credential_leak", False),
+            "engine_source": details.get("engine_source", "local_fallback"),
+            "details": [i for i in (details.get("issues") or details.get("detected_flaws") or []) if i != "Câu lệnh an toàn."],
+            "remediation": details.get("remediation"),
+        }
+        if advisory:
+            jev_response["predicted_edge_cases"] = advisory
+
+    print(f"  📦 {CYAN}{BOLD}[JEV ENGINE JSON PHẢN HỒI]:{RESET}")
+    print(format_colored_json(jev_response, indent_prefix="    "))
+
+    # Cảnh báo tóm tắt nếu có vi phạm
     issues = details.get("issues") or details.get("detected_flaws") or []
     filtered_issues = [i for i in issues if i != "Câu lệnh an toàn."]
     if filtered_issues:
@@ -504,7 +536,7 @@ def _print_monitor_event(entry: Dict[str, Any]):
 
     remediation = details.get("remediation")
     if remediation:
-        print(f"  💡 {CYAN}{BOLD}Hướng dẫn sửa đổi:{RESET} {remediation}")
+        print(f"  💡 {CYAN}{BOLD}Hướng dẫn khắc phục:{RESET} {remediation}")
 
     print(f"{BLUE}-------------------------------------------------------------------------------{RESET}")
 

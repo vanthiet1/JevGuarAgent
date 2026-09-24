@@ -38,17 +38,21 @@ class PromptCheckResult:
     action_verdict: str = "allow"          # "allow" | "warn_user" | "block_immediately"
     details: List[str] = field(default_factory=list)
     remediation: Optional[str] = None
-    engine_source: str = "local_fallback"  # "typesafe_cloud" | "local_fallback"
+    engine_source: str = "local_fallback"  # "typesafe_cloud" | "openrouter_cloud" | "local_fallback"
+    raw_json: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "has_credential_leak": self.has_credential_leak,
-            "destructive_intent_score": self.destructive_intent_score,
+        d = {
             "action_verdict": self.action_verdict,
+            "destructive_intent_score": self.destructive_intent_score,
+            "has_credential_leak": self.has_credential_leak,
+            "engine_source": self.engine_source,
             "details": self.details,
             "remediation": self.remediation,
-            "engine_source": self.engine_source,
         }
+        if self.raw_json:
+            d["raw_model_response"] = self.raw_json
+        return d
 
 
 @dataclass
@@ -534,7 +538,8 @@ class JevEngine:
                             action_verdict=str(parsed.get("action_verdict", "allow")),
                             details=parsed.get("details", []),
                             remediation=parsed.get("remediation"),
-                            engine_source="openrouter_cloud"
+                            engine_source="openrouter_cloud",
+                            raw_json=parsed
                         )
             except Exception:
                 pass
@@ -566,7 +571,8 @@ class JevEngine:
                         action_verdict=str(data.get("action_verdict", "allow")),
                         details=data.get("details", []),
                         remediation=data.get("remediation"),
-                        engine_source="typesafe_cloud"
+                        engine_source="typesafe_cloud",
+                        raw_json=data
                     )
         except Exception:
             pass
@@ -1035,6 +1041,10 @@ class JevEngine:
     def _record_audit_mode1(self, text: str, channel: str, res: PromptCheckResult) -> None:
         """Ghi sự kiện Mode 1 vào audit log."""
         advisory = self.predict_architecture_advisory(text)
+        jev_response = res.to_dict()
+        if advisory:
+            jev_response["predicted_edge_cases"] = advisory.to_dict()
+
         self.logger.log_event(
             event_type="prompt_and_action_check",
             channel=channel,
@@ -1046,6 +1056,7 @@ class JevEngine:
                 "issues": res.details,
                 "remediation": res.remediation,
                 "predicted_edge_cases": advisory.to_dict() if advisory else None,
+                "jev_response": jev_response,
             },
             raw_snippet=text
         )
@@ -1058,6 +1069,7 @@ class JevEngine:
         res: CodeCheckResult
     ) -> None:
         """Ghi sự kiện Mode 2 vào audit log."""
+        jev_response = res.to_dict()
         self.logger.log_event(
             event_type="code_health_check",
             channel=channel,
@@ -1071,6 +1083,7 @@ class JevEngine:
                 "detected_flaws": res.detected_flaws,
                 "remediation_suggestions": res.remediation_suggestions,
                 "engine_source": res.engine_source,
+                "jev_response": jev_response,
             },
             raw_snippet=code
         )

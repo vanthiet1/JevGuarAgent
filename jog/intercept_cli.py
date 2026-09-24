@@ -18,6 +18,7 @@ import os
 import sys
 import shutil
 import argparse
+import json
 from pathlib import Path
 from typing import List, Optional
 
@@ -122,6 +123,8 @@ def run_cli_interceptor(target_binary: str, raw_args: List[str]) -> int:
             reason="\n".join(f"  • {item}" for item in result.details),
             remediation=result.remediation
         )
+        print("\033[36m\033[1m[JEV ENGINE JSON PHẢN HỒI]:\033[0m", file=sys.stderr)
+        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False), file=sys.stderr)
         return 1
 
     elif result.action_verdict == "warn_user":
@@ -130,6 +133,8 @@ def run_cli_interceptor(target_binary: str, raw_args: List[str]) -> int:
             title=f"Phát hiện thao tác tiềm ẩn rủi ro khi chạy '{target_binary}'",
             warnings=result.details
         )
+        print("\033[33m\033[1m[JEV ENGINE JSON PHẢN HỒI]:\033[0m", file=sys.stderr)
+        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False), file=sys.stderr)
         
         # Nếu cấu hình yêu cầu xác nhận
         if config.cli.require_confirmation_on_warn:
