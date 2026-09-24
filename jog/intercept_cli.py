@@ -15,8 +15,8 @@ def is_jog_shim(path: str) -> bool:
     try:
         resolved = os.path.realpath(path)
         resolved_norm = resolved.replace("\\", "/")
-        if "JevGuarAgent" in resolved_norm or ".jog" in resolved_norm:
-            return True
+        if ".jog/real_bins" in resolved_norm:
+            return False
         with open(path, "rb") as f:
             head = f.read(1024).decode("utf-8", errors="ignore")
             if "guar.py" in head or "bin/jog" in head or "JevGuarAgent" in head or "JOG CLI" in head:
@@ -29,6 +29,18 @@ def find_real_binary(binary_name: str, skip_dir: Optional[str] = None) -> Option
     env_override = os.environ.get(f"JOG_REAL_{binary_name.upper()}_BIN")
     if env_override and os.path.isfile(env_override) and not is_jog_shim(env_override):
         return env_override
+
+    real_dir = Path.home() / ".jog" / "real_bins"
+    candidates = [binary_name]
+    if binary_name in ("gemini", "gemini-cli"):
+        candidates.extend(["gemini", "gemini-cli", "agy"])
+    elif binary_name == "agy":
+        candidates.extend(["agy", "gemini", "gemini-cli"])
+
+    for c in candidates:
+        stored = real_dir / c
+        if stored.is_file() and os.access(stored, os.X_OK) and not is_jog_shim(str(stored)):
+            return str(stored)
 
     path_dirs = os.environ.get("PATH", "").split(os.pathsep)
     resolved_skip = os.path.abspath(skip_dir) if skip_dir else None
@@ -44,11 +56,19 @@ def find_real_binary(binary_name: str, skip_dir: Optional[str] = None) -> Option
         if ".jog/bin" in norm_d or norm_d.endswith("/JevGuarAgent/bin"):
             continue
 
-        candidate = shutil.which(binary_name, path=abs_d)
-        if candidate and os.path.isfile(candidate):
-            if is_jog_shim(candidate):
-                continue
-            return candidate
+        for c in candidates:
+            candidate = shutil.which(c, path=abs_d)
+            if candidate and os.path.isfile(candidate):
+                if is_jog_shim(candidate):
+                    continue
+                return candidate
+
+    local_bin = Path.home() / ".local" / "bin"
+    if local_bin.exists():
+        for c in candidates:
+            for f in local_bin.glob(f"{c}.*.old"):
+                if f.is_file() and os.access(f, os.X_OK):
+                    return str(f)
 
     return None
 
@@ -96,6 +116,19 @@ def run_cli_interceptor(target_binary: str, raw_args: List[str]) -> int:
     if not prompt_text:
         this_dir = str(Path(__file__).resolve().parent.parent / "bin")
         real_bin = find_real_binary(target_binary, skip_dir=this_dir)
+        logger.log_event(
+            event_type="cli_session_start",
+            channel=f"cli_{target_binary}",
+            verdict="allow",
+            risk_score=1.0,
+            details={
+                "session": "interactive",
+                "target_binary": target_binary,
+                "real_bin": real_bin or "jog_console",
+                "issues": [f"Bắt đầu phiên làm việc an toàn với {target_binary}"]
+            },
+            raw_snippet=f"{target_binary} (Phiên tương tác Realtime)"
+        )
         if real_bin:
             JogLogger.print_safe_pass("CLI", f"Bắt đầu phiên làm việc an toàn với {target_binary}")
             return spawn_real_binary(real_bin, raw_args)
@@ -179,7 +212,11 @@ def run_cli_interceptor(target_binary: str, raw_args: List[str]) -> int:
     real_bin = find_real_binary(target_binary, skip_dir=this_dir)
 
     if real_bin:
-        return spawn_real_binary(real_bin, raw_args)
+        final_args = list(raw_args)
+        if os.path.basename(real_bin).startswith("agy") and final_args:
+            if not any(arg.startswith("-") for arg in final_args) and final_args[0] not in ("agent", "agents", "changelog", "help", "install", "mcp", "mic-serve", "models", "plugin", "plugins", "remote-control", "update"):
+                final_args = ["-p", prompt_text]
+        return spawn_real_binary(real_bin, final_args)
     else:
         if os.environ.get("JOG_TEST_MODE") == "1":
             print(f"[JOG TEST MODE] Cho phép chạy: {target_binary} {' '.join(raw_args)}")

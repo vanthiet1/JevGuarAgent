@@ -504,11 +504,25 @@ sys.exit(execute_pre_commit_guard())
         if sys.platform != "win32":
             local_bin = Path.home() / ".local" / "bin"
             local_bin.mkdir(parents=True, exist_ok=True)
+            real_bins_dir = Path.home() / ".jog" / "real_bins"
+            real_bins_dir.mkdir(parents=True, exist_ok=True)
             for tool in SUPPORTED_AI_TOOLS:
                 tool_file = local_bin / tool
                 if tool_file.is_symlink():
                     try:
                         tool_file.unlink()
+                    except Exception:
+                        pass
+                elif tool_file.exists():
+                    try:
+                        with open(tool_file, "rb") as bf:
+                            head = bf.read(512)
+                            if b"guar.py" not in head and b"bin/jog" not in head:
+                                dest_backup = real_bins_dir / tool
+                                if not dest_backup.exists():
+                                    import shutil
+                                    shutil.copy2(tool_file, dest_backup)
+                                    dest_backup.chmod(0o755)
                     except Exception:
                         pass
                 script_content = f"""#!/usr/bin/env bash
@@ -526,10 +540,17 @@ fi
                     tool_file.chmod(0o755)
                 except Exception:
                     pass
+            jog_file = local_bin / "jog"
+            try:
+                with open(jog_file, "w", encoding="utf-8") as f:
+                    f.write(f'#!/usr/bin/env bash\nexec python3 "{BASE_DIR}/guar.py" "$@"\n')
+                jog_file.chmod(0o755)
+            except Exception:
+                pass
         else:
             win_apps = Path.home() / "AppData" / "Local" / "Microsoft" / "WindowsApps"
             win_apps.mkdir(parents=True, exist_ok=True)
-            for tool in SUPPORTED_AI_TOOLS:
+            for tool in SUPPORTED_AI_TOOLS + ["jog"]:
                 cmd_f = win_apps / f"{tool}.cmd"
                 with open(cmd_f, "w", encoding="utf-8") as f:
                     f.write(f'@echo off\r\ncall "{BASE_DIR}\\bin\\{tool}.cmd" %*\r\n')
