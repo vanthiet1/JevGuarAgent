@@ -12,15 +12,9 @@
 > - **Không cần cài thư viện ngoài:** 100% chạy bằng thư viện chuẩn Python (không cần `pip install`).
 
 Khi vừa clone về, mở terminal tại thư mục dự án và chạy:
-* **Trên Windows:**
-  ```cmd
-  .\guar active
-  ```
-* **Trên macOS / Linux:**
-  ```bash
-  ./guar active
-  ```
-*(Hệ thống sẽ tự kích hoạt bảo vệ và tự động đăng ký lệnh `guar` vào máy để từ lần sau bạn có thể gõ trực tiếp `guar active` ở bất cứ đâu).*
+```bash
+guar active
+```
 
 ---
 
