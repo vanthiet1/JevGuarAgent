@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+SHIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SHIM_DIR/.." && pwd)"
+
+if command -v python3 >/dev/null 2>&1; then
+    PY_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+    PY_BIN="python"
+elif command -v py >/dev/null 2>&1; then
+    PY_BIN="py"
+else
+    echo "❌ Lỗi: Không tìm thấy Python 3!" >&2
+    exit 1
+fi
+
+exec "$PY_BIN" "$PROJECT_ROOT/guar.py" wrap sgpt "$@"

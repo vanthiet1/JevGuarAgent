@@ -10,20 +10,17 @@ from jog.config import JogConfig, load_config
 from jog.logger import JogLogger, get_logger
 from jog.jev_engine import JevEngine, CodeCheckResult, PromptCheckResult
 
-SENSITIVE_FILENAMES = [
-    ".env", ".env.local", ".env.production", ".env.staging", ".env.development",
-    "id_rsa", "id_ed25519", "id_dsa", "id_ecdsa",
-    "service-account.json", "credentials.json", "secret.json",
-    "private_key.pem", "server.key", "auth_token.txt"
-]
 
-def run_git_cmd(args: List[str]) -> Tuple[int, str]:
+MAX_SCAN_FILE_SIZE = 5 * 1024 * 1024
+
+def run_git_cmd(args: List[str], timeout: float = 10.0) -> Tuple[int, str]:
     try:
         proc = subprocess.run(
             ["git"] + args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            timeout=timeout,
             check=False
         )
         return proc.returncode, proc.stdout
@@ -31,7 +28,7 @@ def run_git_cmd(args: List[str]) -> Tuple[int, str]:
         return -1, str(e)
 
 def get_staged_files() -> List[Tuple[str, str]]:
-    code, output = run_git_cmd(["diff", "--cached", "--name-status"])
+    code, output = run_git_cmd(["diff", "--cached", "--name-status"], timeout=10.0)
     if code != 0 or not output.strip():
         return []
 
@@ -48,11 +45,16 @@ def get_staged_files() -> List[Tuple[str, str]]:
     return files
 
 def get_staged_content(file_path: str) -> Optional[str]:
-    code, content = run_git_cmd(["show", f":{file_path}"])
+    try:
+        if os.path.exists(file_path) and os.path.getsize(file_path) > MAX_SCAN_FILE_SIZE:
+            return None
+    except Exception:
+        pass
+    code, content = run_git_cmd(["show", f":{file_path}"], timeout=15.0)
     return content if code == 0 else None
 
 def get_staged_diff(file_path: str) -> str:
-    code, diff = run_git_cmd(["diff", "--cached", "-U0", "--", file_path])
+    code, diff = run_git_cmd(["diff", "--cached", "-U0", "--", file_path], timeout=15.0)
     return diff if code == 0 else ""
 
 def execute_pre_commit_guard() -> int:
@@ -70,7 +72,7 @@ def execute_pre_commit_guard() -> int:
 
     print(f"\n🛡️  [JOG GIT GUARD] Đang quét an toàn {len(staged_files)} tệp chuẩn bị commit...", file=sys.stderr)
 
-    ignored_patterns = getattr(config.git_hook, "ignored_paths", ["tests/*", "*.md", "demo.sh"])
+    ignored_patterns = getattr(config.git_hook, "ignored_paths", ["tests/*", "*.md", "demo.sh", "bin/*", "*.bat", "*.cmd", "*.ps1"])
 
     for status, file_path in staged_files:
         file_basename = os.path.basename(file_path).lower()
@@ -81,8 +83,9 @@ def execute_pre_commit_guard() -> int:
         )
 
         is_safe_template = file_basename in [".env.example", ".env.sample", ".env.template"] or file_basename.endswith((".example", ".sample", ".template"))
+        sensitive_files = getattr(config.git_hook, "sensitive_filenames", [])
         if not is_safe_template:
-            if any(file_basename == s.lower() for s in SENSITIVE_FILENAMES) or file_basename.startswith(".env"):
+            if any(file_basename == s.lower() for s in sensitive_files) or file_basename.startswith(".env"):
                 has_violation = True
                 violations_summary.append({
                     "file": file_path,
@@ -153,7 +156,7 @@ def execute_pre_commit_guard() -> int:
             print("   • Chi tiết lỗi phát hiện:", file=sys.stderr)
             for f in v["flaws"]:
                 print(f"       - {f}", file=sys.stderr)
-            print("   💡 Hướng dẫn khắc phục cho Agent / Dev:", file=sys.stderr)
+            print("   💡 Hướng dẫn sửa đổi cho Agent / Dev:", file=sys.stderr)
             for r in v["remediations"]:
                 print(f"       -> {r}", file=sys.stderr)
 

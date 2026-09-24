@@ -13,6 +13,36 @@ import urllib.error
 from jog.config import JogConfig, load_config
 from jog.logger import get_logger
 
+def to_vietnamese(text: Optional[str]) -> Optional[str]:
+    if not text:
+        return text
+    translations = [
+        (r"(?i)\bthe command (['\"][^'\"]+['\"]) is a benign command that prints text to the console with no security risks\.?", r"Câu lệnh \1 là lệnh an toàn, chỉ in thông tin ra màn hình và không có rủi ro bảo mật."),
+        (r"(?i)\bthe command (['\"][^'\"]+['\"]) is safe to execute\.?", r"Câu lệnh \1 an toàn để thực thi."),
+        (r"(?i)\bthe command is a benign command that prints text to the console with no security risks\.?", r"Câu lệnh này là lệnh an toàn, chỉ in nội dung ra màn hình và không có rủi ro bảo mật."),
+        (r"(?i)\bthe command is safe to execute\.?", r"Câu lệnh an toàn để thực thi."),
+        (r"(?i)\bthe provided command is a simple echo command and poses no security risks\.?", r"Câu lệnh cung cấp chỉ in dữ liệu đơn giản và không có bất kỳ rủi ro bảo mật nào."),
+        (r"(?i)\bthe provided command is safe\.?", r"Câu lệnh an toàn."),
+        (r"(?i)\bno security risks or destructive commands detected\.?", r"Không phát hiện rủi ro bảo mật hoặc lệnh phá hoại nào."),
+        (r"(?i)\bno security risks detected\.?", r"Không phát hiện rủi ro bảo mật nào."),
+        (r"(?i)\bno sensitive information or secrets leaked\.?", r"Không phát hiện rò rỉ thông tin bí mật."),
+        (r"(?i)\bno credential leak detected\.?", r"Không phát hiện rò rỉ thông tin xác thực."),
+        (r"(?i)\bpotential secret leak detected:?", r"Phát hiện nguy cơ rò rỉ thông tin bí mật:"),
+        (r"(?i)\bdestructive command detected:?", r"Phát hiện câu lệnh có nguy cơ phá hoại:"),
+        (r"(?i)\bsql injection vulnerability detected:?", r"Phát hiện lỗ hổng SQL Injection:"),
+        (r"(?i)\bpotential n\+1 query problem detected:?", r"Phát hiện nguy cơ vấn đề N+1 Query:"),
+        (r"(?i)\bresource leak: unclosed file or connection:?", r"Nguy cơ rò rỉ tài nguyên: chưa đóng file hoặc kết nối:"),
+        (r"(?i)\bmissing timeout in http request:?", r"Thiếu cấu hình timeout trong HTTP request:"),
+        (r"(?i)\buse parameterized queries instead:?", r"Hãy sử dụng truy vấn tham số hóa (Parameterized Query):"),
+        (r"(?i)\badd a timeout to prevent hanging connections:?", r"Thêm tham số timeout để tránh treo kết nối:"),
+        (r"(?i)\bensure resources are properly closed:?", r"Đảm bảo tài nguyên được giải phóng/đóng đúng cách:"),
+        (r"(?i)\bavoid hardcoding secrets or api keys:?", r"Tránh hardcode mã bí mật hoặc API key trong mã nguồn:")
+    ]
+    res = text
+    for pattern, repl in translations:
+        res = re.sub(pattern, repl, res)
+    return res
+
 @dataclass
 class PromptCheckResult:
     has_credential_leak: bool = False
@@ -438,7 +468,7 @@ class JevEngine:
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are a SecOps & Code Integrity AI engine. Analyze the given prompt or command for security risks, secret leaks, and destructive commands. Reply ONLY with valid JSON having keys: has_credential_leak (bool), destructive_intent_score (float 1-10), action_verdict (allow/warn_user/block_immediately), details (list of strings), remediation (string or null)."
+                        "content": "Bạn là chuyên gia SecOps và Bảo mật câu lệnh Jev Guardrail. Hãy phân tích lệnh hoặc prompt được cung cấp để tìm kiếm rủi ro an ninh, rò rỉ secret, hoặc lệnh phá hoại hệ thống. BẮT BUỘC toàn bộ nội dung trong 'details' và 'remediation' PHẢI VIẾT BẰNG TIẾNG VIỆT tự nhiên, chuẩn xác, chuyên nghiệp. Trả về DUY NHẤT JSON hợp lệ gồm: has_credential_leak (bool), destructive_intent_score (float 1-10), action_verdict (allow/warn_user/block_immediately), details (danh sách chuỗi bằng Tiếng Việt), remediation (chuỗi Tiếng Việt hướng dẫn sửa đổi hoặc null)."
                     },
                     {"role": "user", "content": text}
                 ],
@@ -453,12 +483,16 @@ class JevEngine:
                         data = json.loads(content_str)
                         content = data["choices"][0]["message"]["content"]
                         parsed = json.loads(content)
+                        raw_details = parsed.get("details", [])
+                        vi_details = [to_vietnamese(d) for d in raw_details] if isinstance(raw_details, list) else []
+                        raw_rem = parsed.get("remediation")
+                        vi_rem = to_vietnamese(raw_rem) if raw_rem else None
                         return PromptCheckResult(
                             has_credential_leak=bool(parsed.get("has_credential_leak", False)),
                             destructive_intent_score=float(parsed.get("destructive_intent_score", 1.0)),
                             action_verdict=str(parsed.get("action_verdict", "allow")),
-                            details=parsed.get("details", []),
-                            remediation=parsed.get("remediation"),
+                            details=vi_details,
+                            remediation=vi_rem,
                             engine_source="openrouter_cloud",
                             raw_json=parsed
                         )
@@ -485,12 +519,16 @@ class JevEngine:
                 if resp.status == 200:
                     content_str = resp.read().decode("utf-8")
                     data = json.loads(content_str)
+                    raw_details = data.get("details", [])
+                    vi_details = [to_vietnamese(d) for d in raw_details] if isinstance(raw_details, list) else []
+                    raw_rem = data.get("remediation")
+                    vi_rem = to_vietnamese(raw_rem) if raw_rem else None
                     return PromptCheckResult(
                         has_credential_leak=bool(data.get("has_credential_leak", False)),
                         destructive_intent_score=float(data.get("destructive_intent_score", 1.0)),
                         action_verdict=str(data.get("action_verdict", "allow")),
-                        details=data.get("details", []),
-                        remediation=data.get("remediation"),
+                        details=vi_details,
+                        remediation=vi_rem,
                         engine_source="typesafe_cloud",
                         raw_json=data
                     )
@@ -505,9 +543,59 @@ class JevEngine:
         channel: str,
         context: Optional[Dict[str, Any]]
     ) -> Optional[CodeCheckResult]:
+        api_key = self.config.api.typesafe_api_key
+        if not api_key:
+            return None
+
+        if api_key.startswith("sk-" + "or-"):
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/vanthiet1/JevGuarAgent",
+                "X-Title": "JevGuarAgent"
+            }
+            payload = {
+                "model": getattr(self.config.api, "model", "deepseek/deepseek-chat"),
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Bạn là chuyên gia SecOps và Đánh giá kiến trúc mã nguồn Jev Guardrail. Hãy phân tích đoạn code được cung cấp để phát hiện các rủi ro: SQL Injection, N+1 Query, Memory Leak, thiếu timeout kết nối mạng, tài nguyên không giải phóng. BẮT BUỘC toàn bộ nội dung 'detected_flaws' và 'remediation_suggestions' PHẢI VIẾT BẰNG TIẾNG VIỆT chuẩn xác. Trả về DUY NHẤT một chuỗi JSON hợp lệ gồm: future_security_risk (bool), production_stability_score (float 1-10 với 1.0 là an toàn tuyệt đối và 10.0 là cực kỳ nghiêm trọng/rủi ro), architecture_flaw_type (chuỗi), maintainability_verdict (pass/warn_dev_needs_refactor/reject_force_agent_rewrite), leak_risk (float 0-1), detected_flaws (danh sách lỗi bằng Tiếng Việt), remediation_suggestions (danh sách hướng dẫn sửa đổi bằng Tiếng Việt)."
+                    },
+                    {"role": "user", "content": f"Đường dẫn: {file_path or 'đoạn mã'}\n\n```{code[:4000]}```"}
+                ],
+                "response_format": {"type": "json_object"}
+            }
+            try:
+                body_data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(url, data=body_data, headers=headers, method="POST")
+                with urllib.request.urlopen(req, timeout=self.config.api.timeout_seconds) as resp:
+                    if resp.status == 200:
+                        content_str = resp.read().decode("utf-8")
+                        data = json.loads(content_str)
+                        content = data["choices"][0]["message"]["content"]
+                        parsed = json.loads(content)
+                        raw_flaws = parsed.get("detected_flaws", [])
+                        vi_flaws = [to_vietnamese(f) for f in raw_flaws] if isinstance(raw_flaws, list) else []
+                        raw_rems = parsed.get("remediation_suggestions", [])
+                        vi_rems = [to_vietnamese(r) for r in raw_rems] if isinstance(raw_rems, list) else []
+                        return CodeCheckResult(
+                            future_security_risk=bool(parsed.get("future_security_risk", False)),
+                            production_stability_score=float(parsed.get("production_stability_score", 1.0)),
+                            architecture_flaw_type=str(parsed.get("architecture_flaw_type", "clean_and_safe")),
+                            maintainability_verdict=str(parsed.get("maintainability_verdict", "pass")),
+                            leak_risk=float(parsed.get("leak_risk", 0.0)),
+                            detected_flaws=vi_flaws,
+                            remediation_suggestions=vi_rems,
+                            engine_source="openrouter_cloud"
+                        )
+            except Exception:
+                pass
+            return None
+
         url = self.config.api.typesafe_api_url
         headers = {
-            "Authorization": f"Bearer {self.config.api.typesafe_api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "User-Agent": "Jev-Omnichannel-Guardrail/1.0"
         }
@@ -525,14 +613,18 @@ class JevEngine:
                 if resp.status == 200:
                     content_str = resp.read().decode("utf-8")
                     data = json.loads(content_str)
+                    raw_flaws = data.get("detected_flaws", [])
+                    vi_flaws = [to_vietnamese(f) for f in raw_flaws] if isinstance(raw_flaws, list) else []
+                    raw_rems = data.get("remediation_suggestions", [])
+                    vi_rems = [to_vietnamese(r) for r in raw_rems] if isinstance(raw_rems, list) else []
                     return CodeCheckResult(
                         future_security_risk=bool(data.get("future_security_risk", False)),
                         production_stability_score=float(data.get("production_stability_score", 1.0)),
                         architecture_flaw_type=str(data.get("architecture_flaw_type", "clean_and_safe")),
                         maintainability_verdict=str(data.get("maintainability_verdict", "pass")),
                         leak_risk=float(data.get("leak_risk", 0.0)),
-                        detected_flaws=data.get("detected_flaws", []),
-                        remediation_suggestions=data.get("remediation_suggestions", []),
+                        detected_flaws=vi_flaws,
+                        remediation_suggestions=vi_rems,
                         engine_source="typesafe_cloud"
                     )
         except Exception:

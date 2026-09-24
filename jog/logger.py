@@ -7,6 +7,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        os.system("")
+    except Exception:
+        pass
+
 ANSI_RESET = "\033[0m"
 ANSI_BOLD = "\033[1m"
 ANSI_RED = "\033[31m"
@@ -50,7 +58,7 @@ class JogLogger:
             "risk_score": round(risk_score, 2),
             "details": details,
             "pid": os.getpid(),
-            "user": os.environ.get("USER", "unknown"),
+            "user": os.environ.get("USER") or os.environ.get("USERNAME", "unknown"),
         }
         if raw_snippet:
 
@@ -93,7 +101,7 @@ class JogLogger:
 ║   -> {reason}
 {ANSI_RESET}"""
         if remediation:
-            msg += f"""{ANSI_YELLOW}║ Hướng dẫn khắc phục (Feedback cho Agent):
+            msg += f"""{ANSI_YELLOW}║ Hướng dẫn sửa đổi (Feedback cho Agent):
 ║   -> {remediation}
 {ANSI_RESET}"""
         msg += f"""{ANSI_RED}{ANSI_BOLD}╚{border}╝{ANSI_RESET}
@@ -118,7 +126,7 @@ class JogLogger:
 
     @staticmethod
     def print_safe_pass(channel: str, message: str):
-        print(f"{ANSI_GREEN}🛡️  [JOG {channel.upper()}] An toàn: {message}{ANSI_RESET}", file=sys.stderr)
+        print(f"{ANSI_GREEN}🛡️  [Jev Guardrail] {message}{ANSI_RESET}", file=sys.stderr)
 
 _global_logger: Optional[JogLogger] = None
 

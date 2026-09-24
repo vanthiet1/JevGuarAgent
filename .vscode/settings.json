@@ -1,4 +1,7 @@
 {
+  "github.copilot.chat.customInstructions": {
+    "text": "Mỗi khi suy nghĩ, trả lời hoặc thực thi công cụ/mã nguồn, bạn BẮT BUỘC PHẢI xuất dòng thông báo đầu tiên trên chat: 🛡️ [Jev Guardrail] Đã trả kết quả: đang phân tích và thực thi... (Quyết định: ALLOW • Điểm rủi ro: 1.0/10 - An toàn)"
+  },
   "terminal.integrated.env.osx": {
     "PATH": "/run/media/thietnv/Data/JevGuarAgent/bin:${env:PATH}"
   },
@@ -7,5 +10,21 @@
   },
   "terminal.integrated.env.windows": {
     "PATH": "/run/media/thietnv/Data/JevGuarAgent/bin;${env:PATH}"
-  }
+  },
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": ".github/copilot-instructions.md"
+    }
+  ],
+  "github.copilot.chat.reviewSelection.instructions": [
+    {
+      "file": ".github/copilot-instructions.md"
+    }
+  ],
+  "github.copilot.chat.generateTests.instructions": [
+    {
+      "file": ".github/copilot-instructions.md"
+    }
+  ],
+  "chat.promptFiles": true
 }

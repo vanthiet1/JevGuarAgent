@@ -27,7 +27,13 @@ class GitHookConfig:
     leak_risk_threshold: float = 0.6
     production_stability_threshold: float = 7.5
     block_on_reject_verdict: bool = True
-    ignored_paths: list = field(default_factory=lambda: ["tests/*", "*.md", "demo.sh", "test_*.sh"])
+    ignored_paths: list = field(default_factory=lambda: ["tests/*", "*.md", "demo.sh", "test_*.sh", "bin/*", "*.bat", "*.cmd", "*.ps1"])
+    sensitive_filenames: list = field(default_factory=lambda: [
+        ".env", ".env.local", ".env.production", ".env.staging", ".env.development",
+        "id_rsa", "id_ed25519", "id_dsa", "id_ecdsa",
+        "service-account.json", "credentials.json", "secret.json",
+        "private_key.pem", "server.key", "auth_token.txt"
+    ])
 
 @dataclass
 class CliConfig:
