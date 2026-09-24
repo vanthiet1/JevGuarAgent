@@ -85,8 +85,17 @@ class JogLogger:
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
         except Exception as e:
-            # Không làm sập tiến trình nếu ghi log thất bại
             sys.stderr.write(f"[JOG Logger Error] Không thể ghi audit log: {e}\n")
+
+        # Đồng thời luôn ghi vào audit log toàn cục để màn hình monitor ở bất kỳ đâu cũng nhận diện
+        try:
+            global_log = Path.home() / ".jog" / "logs" / "audit.log"
+            if global_log.resolve() != self.log_file.resolve():
+                global_log.parent.mkdir(parents=True, exist_ok=True)
+                with open(global_log, "a", encoding="utf-8") as gf:
+                    gf.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
 
     # =========================================================================
     # Các hàm hỗ trợ hiển thị Terminal đẹp mắt cho người dùng

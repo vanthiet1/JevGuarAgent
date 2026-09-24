@@ -1,0 +1,17 @@
+{
+  "terminal.integrated.env.osx": {
+    "PATH": "/run/media/thietnv/Data/JevGuarAgent/bin:${env:PATH}",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+    "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"
+  },
+  "terminal.integrated.env.linux": {
+    "PATH": "/run/media/thietnv/Data/JevGuarAgent/bin:${env:PATH}",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+    "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"
+  },
+  "terminal.integrated.env.windows": {
+    "PATH": "/run/media/thietnv/Data/JevGuarAgent/bin;${env:PATH}",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+    "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"
+  }
+}

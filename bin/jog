@@ -24,6 +24,7 @@ if str(BASE_DIR) not in sys.path:
 import argparse
 import json
 import time
+import threading
 from jog.config import load_config
 from jog.logger import JogLogger, get_logger
 from jog.jev_engine import JevEngine
@@ -361,34 +362,48 @@ sys.exit(execute_pre_commit_guard())
     logs_dir.mkdir(parents=True, exist_ok=True)
     print(f"  [✓] Nhật ký kiểm toán    : ĐÃ SẴN SÀNG ({logs_dir.relative_to(target_repo)}/)")
 
-    # 5. Tự động đăng ký guar toàn cục (Global CLI)
+    # 5. Tự động đăng ký toàn bộ CLI shims (guar, claude, codex, gemini) toàn cục
     try:
         if sys.platform != "win32":
             local_bin = Path.home() / ".local" / "bin"
             local_bin.mkdir(parents=True, exist_ok=True)
-            user_guar = local_bin / "guar"
-            launcher_script = f"""#!/usr/bin/env bash
-if [ -f "./guar" ] && [ -f "./guar.py" ]; then
-    exec ./guar "$@"
-elif [ -f "./JevGuarAgent/guar" ]; then
-    exec ./JevGuarAgent/guar "$@"
-elif [ -f "{BASE_DIR}/guar" ]; then
-    exec "{BASE_DIR}/guar" "$@"
+            for tool in ["guar", "claude", "codex", "gemini"]:
+                tool_file = local_bin / tool
+                script_content = f"""#!/usr/bin/env bash
+if [ -f "{BASE_DIR}/bin/{tool}" ]; then
+    exec "{BASE_DIR}/bin/{tool}" "$@"
+elif [ -f "{BASE_DIR}/{tool}" ]; then
+    exec "{BASE_DIR}/{tool}" "$@"
 else
-    exec python3 "{BASE_DIR}/guar.py" "$@"
+    exec python3 "{BASE_DIR}/guar.py" wrap {tool} "$@"
 fi
 """
-            with open(user_guar, "w", encoding="utf-8") as f:
-                f.write(launcher_script)
-            user_guar.chmod(0o755)
-            print(f"  [✓] Global CLI 'guar'    : ĐÃ ĐĂNG KÝ ({user_guar})")
+                with open(tool_file, "w", encoding="utf-8") as f:
+                    f.write(script_content)
+                tool_file.chmod(0o755)
+            print(f"  [✓] Global CLI Shims     : ĐÃ ĐĂNG KÝ (guar, claude, codex, gemini -> {local_bin})")
         else:
             win_apps = Path.home() / "AppData" / "Local" / "Microsoft" / "WindowsApps"
             if win_apps.exists():
-                user_cmd = win_apps / "guar.cmd"
-                with open(user_cmd, "w", encoding="utf-8") as f:
-                    f.write(f'@echo off\r\ncall "{BASE_DIR}\\guar.cmd" %*\r\n')
-                print(f"  [✓] Global CLI 'guar'    : ĐÃ ĐĂNG KÝ ({user_cmd})")
+                for tool in ["guar", "claude", "codex", "gemini"]:
+                    cmd_f = win_apps / f"{tool}.cmd"
+                    with open(cmd_f, "w", encoding="utf-8") as f:
+                        f.write(f'@echo off\r\ncall "{BASE_DIR}\\bin\\{tool}.cmd" %*\r\n')
+                print(f"  [✓] Global CLI Shims     : ĐÃ ĐĂNG KÝ ({win_apps})")
+    except Exception:
+        pass
+
+    # 6. Tự động khởi động Local Intercepting Proxy ngầm trên cổng 8080 nếu chưa chạy
+    cfg = load_config()
+    try:
+        from jog.local_proxy import ThreadedHTTPServer, JogProxyHandler
+        server_address = (cfg.proxy.host, cfg.proxy.port)
+        httpd = ThreadedHTTPServer(server_address, JogProxyHandler)
+        proxy_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        proxy_thread.start()
+        print(f"  [✓] Local Proxy (:8080)  : ĐÃ BẬT NGẦM (http://{cfg.proxy.host}:{cfg.proxy.port})")
+    except OSError:
+        print(f"  [✓] Local Proxy (:8080)  : ĐÃ KẾT NỐI (http://{cfg.proxy.host}:{cfg.proxy.port})")
     except Exception:
         pass
 
@@ -617,8 +632,15 @@ def cmd_watch(args):
     except Exception:
         pass
 
-    # Danh sách các file audit log cần theo dõi đồng thời
+    # Danh sách các file audit log cần theo dõi đồng thời (cục bộ + toàn cục)
+    global_log = Path.home() / ".jog" / "logs" / "audit.log"
+    global_log.parent.mkdir(parents=True, exist_ok=True)
+    if not global_log.exists():
+        global_log.touch()
+
     watch_files = [log_file]
+    if global_log.resolve() != log_file.resolve():
+        watch_files.append(global_log)
 
     file_offsets = {}
     for wf in watch_files:
