@@ -1,6 +1,6 @@
 # 🛡️ Jev Omnichannel Guardrail (JOG) `v1.0.0`
 
-> Tối ưu chất lượng mã nguồn và tiết kiệm token cho các AI agent khi viết code (Cursor, VS Code, Antigravity, Claude Code, Codex).
+> Tối ưu chất lượng mã nguồn, ngăn chặn ảo giác do AI gây ra và tiết kiệm token cho các AI agent khi viết code (Cursor, VS Code, Antigravity, Claude Code, Codex).
 
 ---
 
