@@ -170,12 +170,11 @@ def cmd_activate(args):
     jog_bin = BASE_DIR / "bin" / "jog"
     try:
         rel_path = os.path.relpath(jog_bin, target_repo)
-        if not rel_path.startswith("."):
-            rel_jog = f"./{rel_path}"
-        else:
-            rel_jog = rel_path
+        rel_jog = Path(rel_path).as_posix()
+        if not rel_jog.startswith("."):
+            rel_jog = f"./{rel_jog}"
     except Exception:
-        rel_jog = str(jog_bin)
+        rel_jog = jog_bin.as_posix()
 
     # 1. Tạo cấu hình IDE Customizations (.agents)
     agents_dir = target_repo / ".agents"
@@ -283,17 +282,38 @@ Chạy lệnh sau để Jev chẩn đoán:
         hooks_dir = git_dir / "hooks"
         hooks_dir.mkdir(parents=True, exist_ok=True)
         hook_file = hooks_dir / "pre-commit"
-        hook_content = f"""#!/usr/bin/env bash
+        base_posix = BASE_DIR.as_posix()
+        hook_content = f"""#!/usr/bin/env sh
 # =============================================================================
-# JOG Git Hook - Tự động bảo vệ mã nguồn
+# JOG Git Hook - Cross-Platform (Windows / macOS / Linux)
 # =============================================================================
-set -e
-export PYTHONPATH="{BASE_DIR}:$PYTHONPATH"
-exec python3 -m jog.pre_commit_guard "$@"
+if command -v python3 >/dev/null 2>&1; then
+    PY_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+    PY_BIN="python"
+elif command -v py >/dev/null 2>&1; then
+    PY_BIN="py"
+else
+    echo "❌ [JOG Hook] Python 3 not found in PATH!" >&2
+    exit 1
+fi
+
+exec "$PY_BIN" -c "
+import sys
+from pathlib import Path
+base = Path(r'''{base_posix}''')
+if str(base) not in sys.path:
+    sys.path.insert(0, str(base))
+from jog.pre_commit_guard import execute_pre_commit_guard
+sys.exit(execute_pre_commit_guard())
+"
 """
         with open(hook_file, "w", encoding="utf-8") as f:
             f.write(hook_content)
-        os.chmod(hook_file, 0o755)
+        try:
+            os.chmod(hook_file, 0o755)
+        except Exception:
+            pass
         print(f"  [✓] Git Pre-Commit Guard : ĐÃ BẬT ({hook_file.relative_to(target_repo)})")
     else:
         print(f"  [-] Git Pre-Commit Guard : BỎ QUA (Không tìm thấy thư mục .git tại {target_repo})")
@@ -507,9 +527,6 @@ def cmd_watch(args):
 
     # Danh sách các file audit log cần theo dõi đồng thời
     watch_files = [log_file]
-    wedding_log = Path("/run/media/thietnv/Data/Demo/wedding-manager/.jog/logs/audit.log")
-    if wedding_log.exists() and wedding_log not in watch_files:
-        watch_files.append(wedding_log)
 
     file_offsets = {}
     for wf in watch_files:
@@ -564,17 +581,38 @@ def cmd_install_hook(args):
     hooks_dir.mkdir(parents=True, exist_ok=True)
     hook_file = hooks_dir / "pre-commit"
 
-    hook_content = f"""#!/usr/bin/env bash
+    base_posix = BASE_DIR.as_posix()
+    hook_content = f"""#!/usr/bin/env sh
 # =============================================================================
-# JOG Git Hook - Tự động bảo vệ mã nguồn
+# JOG Git Hook - Cross-Platform (Windows / macOS / Linux)
 # =============================================================================
-set -e
-export PYTHONPATH="{BASE_DIR}:$PYTHONPATH"
-exec python3 -m jog.pre_commit_guard "$@"
+if command -v python3 >/dev/null 2>&1; then
+    PY_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+    PY_BIN="python"
+elif command -v py >/dev/null 2>&1; then
+    PY_BIN="py"
+else
+    echo "❌ [JOG Hook] Python not found in PATH!" >&2
+    exit 1
+fi
+
+exec "$PY_BIN" -c "
+import sys
+from pathlib import Path
+base = Path(r'''{base_posix}''')
+if str(base) not in sys.path:
+    sys.path.insert(0, str(base))
+from jog.pre_commit_guard import execute_pre_commit_guard
+sys.exit(execute_pre_commit_guard())
+"
 """
     with open(hook_file, "w", encoding="utf-8") as f:
         f.write(hook_content)
-    os.chmod(hook_file, 0o755)
+    try:
+        os.chmod(hook_file, 0o755)
+    except Exception:
+        pass
     print(f"✅ Đã cài đặt JOG Git Pre-commit Hook thành công vào: {hook_file}")
 
 

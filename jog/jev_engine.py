@@ -19,7 +19,10 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 
-import requests
+try:
+    import requests
+except ImportError:
+    requests = None
 
 from jog.config import JogConfig, load_config
 from jog.logger import get_logger

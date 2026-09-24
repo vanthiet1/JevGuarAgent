@@ -26,7 +26,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from typing import Dict, Any, Optional, Tuple, List
 
-import requests
+try:
+    import requests
+except ImportError:
+    requests = None
 
 from jog.config import JogConfig, load_config
 from jog.logger import JogLogger, get_logger

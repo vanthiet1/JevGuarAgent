@@ -13,22 +13,18 @@
 
 ## ⚡ Bảng Tra Cứu Câu Lệnh Nhanh (Cheat Sheet)
 
-Chỉ cần copy thư mục `JevGuarAgent` vào bất kỳ dự án nào, bạn có thể thực thi ngay:
+Hệ thống hỗ trợ 100% nguyên bản trên **Windows**, **macOS**, và **Linux**. Bạn chỉ cần dùng:
 
-| Câu lệnh | Kênh tác động | Công dụng chi tiết |
+| macOS / Linux | Windows (CMD / PowerShell) | Công dụng cốt lõi |
 | :--- | :--- | :--- |
-| `guar active` | **Toàn diện + Realtime** | **Bật bảo vệ 1-Click & Tự động chạy Realtime Monitor** theo dõi trực tiếp mọi prompt gửi lên |
-| `guar active -d` | **Chạy ngầm** | Chỉ kích hoạt quy tắc bảo vệ dưới nền mà không giữ màn hình Realtime |
-| `guar watch` | **Realtime Monitor** | **Mở radar thời gian thực** (Tự động stream mọi prompt từ IDE, CLI, Git) |
-| `guar console` | **Interactive Prompt** | **Bảng điều khiển tương tác liên tục** (Gõ prompt liên tục và xem phản hồi tức thì) |
-| `guar status` | **Hệ thống** | **Kiểm tra trạng thái bảo vệ** (Rules IDE: BẬT/TẮT, Git Hook: BẬT/TẮT, Proxy: BẬT/TẮT) |
-| `guar check prompt "<lệnh/ý định>"` | **Prompt & CLI** | Quét mức độ phá hoại, rò rỉ secret và **phỏng đoán toàn bộ edge cases kiến trúc** |
-| `guar check code "<tệp/đoạn mã>"` | **Mã nguồn (AST)** | Quét lỗ hổng tiềm ẩn: SQLi, N+1 Query, Resource Leak, Race Condition, Missing Timeout |
-| `guar proxy start [--port 8080]` | **IDE / GUI Proxy** | Khởi động Local Intercepting Proxy chặn cứng HTTP 403 và kích hoạt Self-Correction Loop |
-| `guar audit [-n 20]` | **Audit Log** | Xem lịch sử sự kiện kiểm toán bảo mật và dấu vết các lệnh bị chặn |
-| `guar deactive` | **Hệ thống** | **Hủy kích hoạt bảo vệ**, gỡ bỏ rules và git hook sạch sẽ khỏi dự án |
+| `guar active` (hoặc `./guar active`) | `guar active` (hoặc `.\guar active`) | **Bật bảo vệ 1-Click & Tự động chạy Realtime Monitor** |
+| `guar active -d` | `guar active -d` | Kích hoạt bảo vệ chạy ngầm (không giữ màn hình terminal) |
+| `guar watch` | `guar watch` | **Mở radar thời gian thực** (Tự động stream mọi prompt từ IDE, CLI, Git) |
+| `guar console` | `guar console` | **Bảng điều khiển tương tác** (Gõ prompt liên tục và xem phản hồi tức thì) |
+| `guar status` | `guar status` | **Kiểm tra trạng thái bảo vệ** (Rules IDE: BẬT/TẮT, Git Hook: BẬT/TẮT) |
+| `guar deactive` | `guar deactive` | **Hủy kích hoạt bảo vệ**, gỡ bỏ rules và git hook sạch sẽ khỏi dự án |
 
-*(💡 Mẹo: Bạn có thể gõ `guar active`, `guard active`, `jog activate`, hoặc `./guar active` tùy ý).*
+*(💡 Mẹo: Trên mọi hệ điều hành, bạn cũng có thể gõ trực tiếp `python guar.py active` mà không phụ thuộc vào loại shell).*
 
 ---
 
@@ -211,165 +207,64 @@ Chặn đứng việc vô tình commit file `.env`, private key hoặc mã ngu�
 
 ---
 
-## 🚀 4. Hướng Dẫn Cài Đặt & Sử Dụng Từ A Đến Z (Step-by-Step Guide)
+## 🚀 4. Tích Hợp 1-Bước Siêu Tối Giản (Windows / macOS / Linux)
 
-### Bước 1: Clone mã nguồn dự án về máy
-Mở terminal và clone repository về máy tính của bạn:
-```bash
-git clone https://github.com/vanthiet1/JevGuarAgent.git
-cd JevGuarAgent
-```
+> **Zero-Dependency & Zero-Config:** Không cần `pip install` (100% thư viện chuẩn Python). Không bắt buộc có API Key (chạy Offline Heuristics an toàn 100% ngay trên máy).
+
+Khi clone hoặc copy thư mục `JevGuarAgent` vào dự án của bạn, việc kích hoạt bảo vệ chỉ mất **đúng 1 lệnh duy nhất**:
+
+### ⚡ BƯỚC 1: KÍCH HOẠT BẢO VỆ 1-CLICK
+
+* **Trên Windows (Command Prompt hoặc PowerShell):**
+  ```cmd
+  .\guar active
+  ```
+* **Trên macOS / Linux:**
+  ```bash
+  ./guar active
+  ```
+* **Hoặc chạy trực tiếp bằng Python (mọi hệ điều hành):**
+  ```bash
+  python guar.py active
+  ```
+
+> 🎉 **Tự động 100% trong 1 giây:**
+> - [x] Tự động liên kết **AI Agent IDE Rules** (`.agents/rules/` và `.agents/skills/`) cho Cursor, Antigravity, VS Code, Claude Code.
+> - [x] Tự động cài đặt **Git Pre-commit Hook** (`.git/hooks/pre-commit`) chặn rò rỉ secret và mã nguồn lỗi.
+> - [x] Tự động mở màn hình **Realtime Terminal Monitor (`guar watch`)** theo dõi trực tiếp mọi prompt gửi lên!  
+> *(Nếu muốn kích hoạt chạy ngầm dưới nền mà không giữ màn hình Terminal, chỉ cần thêm cờ `-d`: `guar active -d`).*
 
 ---
 
-### Bước 2: Cài đặt và kích hoạt bộ công cụ toàn cục
-Chạy script cài đặt tự động 1-Click:
-```bash
-bash install.sh
-source ~/.bashrc
-```
-> 💡 **Tác vụ thực thi tự động:**
-> - Tự động đăng ký các lệnh toàn cục `guar`, `guard`, `jog` vào thư mục `~/.local/bin`.
-> - Cấp quyền thực thi (`chmod +x`) cho toàn bộ launcher và module nhị phân.
-> - Giờ đây bạn có thể đứng ở **bất kỳ thư mục nào** trên máy tính và gõ trực tiếp `guar`!
-
-Kiểm tra bộ test tự động để đảm bảo môi trường đạt 100% tiêu chuẩn an toàn:
-```bash
-python3 tests/run_all_tests.py
-# Kết quả mong đợi: 32/32 tests PASSED!
-```
-
----
-
-### Bước 3: Cấu hình Biến Môi Trường (.env) & Hướng Dẫn Lấy API Key Từ OpenRouter
-
-#### 🛡️ Triết lý Zero-Trust:
-> **Lưu ý quan trọng:** JevGuarAgent hoạt động **100% độc lập ở chế độ Offline (Local Fallback)** mà không cần kết nối mạng hay bất kỳ API key nào (vẫn quét regex SecOps, phân tích AST Python, và phỏng đoán 9 domain kiến trúc cực chuẩn).  
-> Khi cung cấp thêm **OpenRouter API Key**, hệ thống sẽ kích hoạt thêm khả năng suy luận ngữ cảnh sâu từ các mô hình AI tiên tiến nhất (Claude 3.5 Sonnet, DeepSeek V3, GPT-4o, Gemini 2.0 Flash) để phân tích logic nghiệp vụ phức tạp.
-
-#### 1. Tạo tệp `.env`:
-Tạo tệp `.env` tại thư mục dự án để lưu API Key:
-```bash
-echo "OPENROUTER_API_KEY=sk-or-v1-your-key-here" > .env
-```
-
-#### 2. Các biến cấu hình chính trong `.env`:
-
-> 💡 **Quan trọng:** Bạn **CHỈ CẦN quan tâm API Key** (`OPENROUTER_API_KEY`)! JEV Guardrail đã tự động định tuyến và quản lý model AI Reasoning tối ưu ngầm bên dưới (mặc định DeepSeek Chat siêu nhanh & chi phí tối ưu), nhà phát triển hoàn toàn không cần bận tâm hay cấu hình model.
+### 🔑 BƯỚC 2: (TÙY CHỌN) THÊM OPENROUTER API KEY NẾU MUỐN AI CLOUD REASONING
+> Mặc định JOG chạy **Offline Engine** hoàn toàn miễn phí và bảo mật tuyệt đối (quét regex SecOps, phân tích cú pháp AST, và phỏng đoán Edge Cases ngay tại máy).  
+> Nếu bạn muốn tăng cường thêm khả năng suy luận ngữ cảnh sâu qua các mô hình AI tiên tiến (DeepSeek, Claude 3.5 Sonnet, GPT-4o), chỉ cần tạo file `.env` tại thư mục dự án:
 
 ```env
-# 1. API Key từ OpenRouter (Chỉ cần duy nhất key này là đủ hoạt động 100%)
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# (Tùy chọn) Khóa TypeSafe Enterprise nếu có
-TYPESAFE_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# 2. Cấu hình Local Proxy & Audit Log (Mặc định đã tối ưu)
-JOG_PROXY_HOST=127.0.0.1
-JOG_PROXY_PORT=8080
-JOG_AUDIT_LOG=.jog/logs/audit.log
-
-# 3. Ngưỡng cảnh báo an toàn
-JOG_LEAK_THRESHOLD=0.6
-JOG_STABILITY_THRESHOLD=7.5
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
-
-#### 3. Hướng dẫn chi tiết từng bước lấy API Key từ OpenRouter.ai:
-
-> [!TIP]
-> **⚡ Đường dẫn nhanh lấy API Key OpenRouter trong 30 giây:**  
-> 👉 Truy cập trực tiếp: **[https://openrouter.ai/settings/keys](https://openrouter.ai/settings/keys)**  
-> *(Chỉ cần đăng nhập bằng Google/GitHub ➔ Bấm **"Create Key"** ➔ Copy chuỗi `sk-or-v1-...` dán vào `.env` là hoàn tất!)*
-1. **Truy cập trang chủ:** Mở trình duyệt và truy cập [https://openrouter.ai/](https://openrouter.ai/).
-2. **Đăng ký / Đăng nhập:**
-   - Bấm vào nút **Sign In** (hoặc **Sign Up**) ở góc trên cùng bên phải.
-   - Bạn có thể đăng nhập nhanh bằng tài khoản **Google** hoặc **GitHub**.
-3. **Mở trang quản lý Keys:**
-   - Nhấp vào biểu tượng **Avatar tài khoản** ở góc trên cùng bên phải ➔ Chọn **Keys**.
-   - Hoặc truy cập đường link trực tiếp: [https://openrouter.ai/settings/keys](https://openrouter.ai/settings/keys).
-4. **Tạo API Key mới:**
-   - Bấm nút **"Create Key"**.
-   - Đặt tên gợi nhớ cho key (ví dụ: `JevGuarAgent`).
-   - *(Tùy chọn)* Đặt Credit Limit nếu muốn giới hạn hạn mức chi tiêu.
-   - Bấm nút **Create**.
-5. **Sao chép Key:**
-   - Một chuỗi token có tiền tố `sk-or-v1-...` sẽ xuất hiện trên màn hình. Bấm **Copy**.
-   - ⚠️ *Lưu ý: Chuỗi key chỉ hiển thị 1 lần duy nhất lúc tạo vì lý do an toàn.*
-6. **Dán Key vào `.env`:**
-   - Mở tệp `.env` và dán chuỗi vừa copy vào:
-     ```env
-     OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-     ```
-7. **Tự động kích hoạt phòng thủ:**
-   - JEV Guardrail tự động kết nối và vận hành trên nền tảng AI Reasoning tối ưu ngầm bên dưới.
-   - Bạn không cần cấu hình thêm bất kỳ thiết lập model phức tạp nào, hệ thống sẵn sàng hoạt động ngay lập tức!
-
-> 💡 **Project-Level Discovery:** JevGuarAgent có cơ chế tự động tìm kiếm `.env` thông minh. Bạn có thể đặt file `.env` tại thư mục của `JevGuarAgent` HOẶC đặt trong thư mục dự án mục tiêu bạn đang phát triển (`wedding-manager`, `ecommerce`, ...), hệ thống đều tự động nhận diện chính xác!
+*(👉 Lấy key miễn phí chỉ trong 30 giây tại: **[https://openrouter.ai/settings/keys](https://openrouter.ai/settings/keys)**)*
 
 ---
 
-### Bước 4: Kích hoạt bảo vệ cho bất kỳ dự án nào (`guar active`)
-Mỗi khi bạn tạo hoặc clone một dự án mã nguồn mới cần bảo vệ (ví dụ: `wedding-manager`, `ecommerce`, `crm-api`), bạn chỉ cần:
+### 📡 CÁC LỆNH QUẢN TRỊ CỐT LÕI (KHI CẦN)
 
-```bash
-# Cách 1: Đứng tại thư mục dự án và bật bảo vệ 1-Click:
-guar active
-
-# Cách 2: Bật bảo vệ đồng thời mở Terminal Monitor Realtime quan sát trực tiếp:
-guar active -w
-
-# Cách 3: Hoặc chỉ định đường dẫn cụ thể từ bất kỳ đâu:
-guar active /path/to/my-project
-```
-> 🎉 **Xong!** Dự án của bạn lập tức được kích hoạt đồng thời cả **AI Agent IDE Rules** (`.agents/`) và **Git Pre-commit Hook** (`.git/hooks/pre-commit`).
-
----
-
-### Bước 5: Mở Màn Hình Giám Sát Thời Gian Thực (`guar watch`)
-Để theo dõi luồng prompt gửi lên, rủi ro bị chặn và các edge cases được phỏng đoán tức thì:
-```bash
-guar watch
-# (Hoặc alias: guar monitor, guar live)
-```
-> 💡 *Mẹo:* Hãy mở một cửa sổ/tab terminal riêng (Split Pane) và chạy lệnh này để xem radar bảo vệ hoạt động liên tục!
-
----
-
-### Bước 6: Tương tác cùng AI Agent trong IDE (Cursor, Antigravity, VS Code, Claude Code)
-
-Có 2 cách tích hợp tùy theo nhu cầu của bạn:
-
-#### Cách A: Tích hợp tự nhiên qua `.agents/` (Khuyên dùng)
-* Sau khi chạy `guar active`, các tệp `.agents/rules/jog_guardrail.md` và `.agents/skills/jog-guard/SKILL.md` đã tự động liên kết vào dự án.
-* Bạn chỉ cần chat và giao nhiệm vụ cho Agent như bình thường. Agent sẽ tự động tham khảo guardrail trước khi đề xuất hoặc thực thi mã lệnh.
-
-#### Cách B: Chặn cứng tầng mạng qua Local Proxy (:8080)
-1. Khởi động Proxy:
-   ```bash
-   guar proxy start --port 8080
-   # Hoặc chạy ngầm dưới nền:
-   nohup guar proxy start --port 8080 > .jog/logs/proxy.log 2>&1 &
-   ```
-2. Cấu hình IDE (Cursor Settings / Continue / Antigravity):
-   * Đặt **Base URL** của LLM Provider thành: `http://127.0.0.1:8080/v1`
-   * Mọi request chat sẽ đi xuyên qua JOG Proxy. Nếu phát hiện code lỗi hoặc nguy hiểm, Proxy lập tức trả về mã `HTTP 403` kích hoạt cơ chế Self-Correction bắt Agent tự sửa lại mã nguồn an toàn trước khi hiển thị cho bạn.
-
----
-
-### Bước 7: Kiểm tra trạng thái & Nhật ký kiểm toán bảo mật
-```bash
-# Xem trạng thái kích hoạt của dự án:
-guar status
-
-# Xem 20 sự kiện kiểm toán bảo mật gần nhất:
-guar audit
-
-# Thử nghiệm quét lệnh shell thủ công:
-guar check prompt "rm -rf /"
-
-# Thử nghiệm quét file mã nguồn tìm lỗi tiềm ẩn:
-guar check code "src/lib/db.ts"
-```
+* **Mở radar theo dõi thời gian thực (Terminal Live Monitor):**
+  ```bash
+  guar watch        # Windows: .\guar watch (hoặc python guar.py watch)
+  ```
+* **Thử nghiệm prompt tương tác trực tiếp (Interactive Console):**
+  ```bash
+  guar console      # Windows: .\guar console (hoặc python guar.py console)
+  ```
+* **Kiểm tra trạng thái kích hoạt của dự án:**
+  ```bash
+  guar status       # Windows: .\guar status (hoặc python guar.py status)
+  ```
+* **Hủy kích hoạt bảo vệ sạch sẽ khỏi dự án:**
+  ```bash
+  guar deactive     # Windows: .\guar deactive (hoặc python guar.py deactive)
+  ```
 
 ---
 
