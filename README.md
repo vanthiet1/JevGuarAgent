@@ -8,12 +8,14 @@
 
 | Hệ điều hành | Kích hoạt bảo vệ | Kiểm tra trạng thái | Hủy kích hoạt |
 | :--- | :--- | :--- | :--- |
-| **Windows (CMD / PowerShell)** | `.\guar active` | `.\guar status` | `.\guar deactive` |
-| **macOS / Linux** | `./guar active` | `./guar status` | `./guar deactive` |
-| **Universal (Mọi OS)** | `python guar.py active` | `python guar.py status` | `python guar.py deactive` |
+| **Mọi hệ điều hành (Windows / macOS / Linux)** | `guar active` | `guar status` | `guar deactive` |
 
-> **Chạy nhanh 1 bước:**
-> Chạy `.\guar active` (Windows) hoặc `./guar active` (Mac/Linux) để tự động kích hoạt toàn bộ bảo vệ.
+> **Chạy trực tiếp không cần `./` hay `.\`:**
+> Gõ ngay trong terminal:
+> ```bash
+> guar active
+> ```
+> *(Lệnh tự động thiết lập bảo vệ toàn diện cho dự án và tự động đăng ký lệnh `guar` toàn cục trên máy).*
 
 ---
 

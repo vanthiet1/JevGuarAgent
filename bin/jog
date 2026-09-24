@@ -361,6 +361,37 @@ sys.exit(execute_pre_commit_guard())
     logs_dir.mkdir(parents=True, exist_ok=True)
     print(f"  [✓] Nhật ký kiểm toán    : ĐÃ SẴN SÀNG ({logs_dir.relative_to(target_repo)}/)")
 
+    # 5. Tự động đăng ký guar toàn cục (Global CLI)
+    try:
+        if sys.platform != "win32":
+            local_bin = Path.home() / ".local" / "bin"
+            local_bin.mkdir(parents=True, exist_ok=True)
+            user_guar = local_bin / "guar"
+            launcher_script = f"""#!/usr/bin/env bash
+if [ -f "./guar" ] && [ -f "./guar.py" ]; then
+    exec ./guar "$@"
+elif [ -f "./JevGuarAgent/guar" ]; then
+    exec ./JevGuarAgent/guar "$@"
+elif [ -f "{BASE_DIR}/guar" ]; then
+    exec "{BASE_DIR}/guar" "$@"
+else
+    exec python3 "{BASE_DIR}/guar.py" "$@"
+fi
+"""
+            with open(user_guar, "w", encoding="utf-8") as f:
+                f.write(launcher_script)
+            user_guar.chmod(0o755)
+            print(f"  [✓] Global CLI 'guar'    : ĐÃ ĐĂNG KÝ ({user_guar})")
+        else:
+            win_apps = Path.home() / "AppData" / "Local" / "Microsoft" / "WindowsApps"
+            if win_apps.exists():
+                user_cmd = win_apps / "guar.cmd"
+                with open(user_cmd, "w", encoding="utf-8") as f:
+                    f.write(f'@echo off\r\ncall "{BASE_DIR}\\guar.cmd" %*\r\n')
+                print(f"  [✓] Global CLI 'guar'    : ĐÃ ĐĂNG KÝ ({user_cmd})")
+    except Exception:
+        pass
+
     print("\n" + "=" * 75)
     print("🎉 KÍCH HOẠT THÀNH CÔNG! Dự án của bạn đã được bảo vệ toàn diện bởi JOG.")
     print("   • Terminal CLI Shims (claude, codex, gemini) : SẴN SÀNG")
