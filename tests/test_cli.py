@@ -71,6 +71,7 @@ class TestCliInterceptor(unittest.TestCase):
             self.assertEqual(proc.returncode, 0)
             self.assertTrue((tmppath / ".agents" / "rules" / "jog_guardrail.md").exists())
             self.assertTrue((tmppath / ".agents" / "skills" / "jog-guard" / "SKILL.md").exists())
+            self.assertTrue((tmppath / ".vscode" / "settings.json").exists())
             self.assertTrue((tmppath / ".git" / "hooks" / "pre-commit").exists())
 
             # 2. Hủy kích hoạt

@@ -276,7 +276,45 @@ Chạy lệnh sau để Jev chẩn đoán:
     print(f"  [✓] AI Agent IDE Rules   : ĐÃ BẬT ({rule_file.relative_to(target_repo)})")
     print(f"  [✓] AI Agent IDE Skills  : ĐÃ BẬT ({skill_file.relative_to(target_repo)})")
 
-    # 2. Cài đặt Git Pre-Commit Hook
+    # 2. Cấu hình VS Code (.vscode/settings.json) cho Terminal, Claude Code và Codex
+    vscode_dir = target_repo / ".vscode"
+    vscode_dir.mkdir(parents=True, exist_ok=True)
+    vscode_settings = vscode_dir / "settings.json"
+    settings_data = {}
+    if vscode_settings.exists():
+        try:
+            with open(vscode_settings, "r", encoding="utf-8") as f:
+                settings_data = json.load(f)
+        except Exception:
+            settings_data = {}
+
+    bin_dir_posix = (BASE_DIR / "bin").as_posix()
+    bin_dir_win = str(BASE_DIR / "bin")
+
+    env_unix = {
+        "PATH": f"{bin_dir_posix}:${{env:PATH}}",
+        "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+        "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"
+    }
+    env_win = {
+        "PATH": f"{bin_dir_win};${{env:PATH}}",
+        "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+        "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"
+    }
+
+    for os_key, env_val in [("terminal.integrated.env.osx", env_unix), ("terminal.integrated.env.linux", env_unix), ("terminal.integrated.env.windows", env_win)]:
+        if os_key not in settings_data or not isinstance(settings_data[os_key], dict):
+            settings_data[os_key] = {}
+        settings_data[os_key].update(env_val)
+
+    try:
+        with open(vscode_settings, "w", encoding="utf-8") as f:
+            json.dump(settings_data, f, indent=2, ensure_ascii=False)
+        print(f"  [✓] VS Code Tích Hợp     : ĐÃ BẬT ({vscode_settings.relative_to(target_repo)})")
+    except Exception:
+        pass
+
+    # 3. Cài đặt Git Pre-Commit Hook
     git_dir = target_repo / ".git"
     if git_dir.exists():
         hooks_dir = git_dir / "hooks"
@@ -318,13 +356,16 @@ sys.exit(execute_pre_commit_guard())
     else:
         print(f"  [-] Git Pre-Commit Guard : BỎ QUA (Không tìm thấy thư mục .git tại {target_repo})")
 
-    # 3. Tạo thư mục audit log
+    # 4. Tạo thư mục audit log
     logs_dir = target_repo / ".jog" / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     print(f"  [✓] Nhật ký kiểm toán    : ĐÃ SẴN SÀNG ({logs_dir.relative_to(target_repo)}/)")
 
     print("\n" + "=" * 75)
     print("🎉 KÍCH HOẠT THÀNH CÔNG! Dự án của bạn đã được bảo vệ toàn diện bởi JOG.")
+    print("   • Terminal CLI Shims (claude, codex, gemini) : SẴN SÀNG")
+    print("   • VS Code & Claude Code / Codex Tracking     : ĐÃ TÍCH HỢP")
+    print("   • Git Pre-Commit Security Guard              : ĐANG BẢO VỆ")
     print("=" * 75 + "\n")
 
     # Tự động chuyển sang màn hình Realtime Monitor ngay lập tức (không cần -w)
@@ -348,6 +389,26 @@ def cmd_deactivate(args):
     if skill_file.exists():
         skill_file.unlink()
         print("  [✓] Đã xóa kỹ năng IDE: .agents/skills/jog-guard/SKILL.md")
+
+    # Dọn dẹp .vscode/settings.json
+    vscode_settings = target_repo / ".vscode" / "settings.json"
+    if vscode_settings.exists():
+        try:
+            with open(vscode_settings, "r", encoding="utf-8") as f:
+                s_data = json.load(f)
+            for k in ["terminal.integrated.env.osx", "terminal.integrated.env.linux", "terminal.integrated.env.windows"]:
+                if k in s_data and isinstance(s_data[k], dict):
+                    for var in ["ANTHROPIC_BASE_URL", "OPENAI_BASE_URL"]:
+                        s_data[k].pop(var, None)
+                    if "PATH" in s_data[k] and "JevGuarAgent" in s_data[k]["PATH"]:
+                        del s_data[k]["PATH"]
+                    if not s_data[k]:
+                        del s_data[k]
+            with open(vscode_settings, "w", encoding="utf-8") as f:
+                json.dump(s_data, f, indent=2, ensure_ascii=False)
+            print("  [✓] Đã gỡ bỏ biến môi trường JOG khỏi .vscode/settings.json")
+        except Exception:
+            pass
 
     hook_file = target_repo / ".git" / "hooks" / "pre-commit"
     if hook_file.exists():

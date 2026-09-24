@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 # =============================================================================
-# JOG Shim: claude
-# Tự động chuyển tiếp lệnh qua JOG CLI Interceptor trước khi gọi binary gốc.
+# JOG Shim: claude (macOS / Linux / Git Bash / WSL)
 # =============================================================================
 set -e
-
-# Tìm đường dẫn gốc của dự án JOG
 SHIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SHIM_DIR/.." && pwd)"
 
-export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
-exec python3 -m jog.intercept_cli --target claude "$@"
+if command -v python3 >/dev/null 2>&1; then
+    PY_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+    PY_BIN="python"
+elif command -v py >/dev/null 2>&1; then
+    PY_BIN="py"
+else
+    echo "❌ Lỗi: Không tìm thấy Python 3!" >&2
+    exit 1
+fi
+
+exec "$PY_BIN" "$PROJECT_ROOT/guar.py" wrap claude "$@"
