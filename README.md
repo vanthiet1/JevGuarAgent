@@ -4,21 +4,41 @@
 
 ---
 
-## ⚡ 1. Các Câu Lệnh Chạy
+## ⚡ 1. Khởi Chạy Lần Đầu (Chỉ cần có Python)
 
-| Hệ điều hành | Kích hoạt bảo vệ | Kiểm tra trạng thái | Hủy kích hoạt |
-| :--- | :--- | :--- | :--- |
-| **Mọi hệ điều hành (Windows / macOS / Linux)** | `guar active` | `guar status` | `guar deactive` |
+> 💡 **Yêu cầu duy nhất:** Máy tính có cài sẵn **Python (3.8 trở lên)**.  
+> **Hoàn toàn KHÔNG cần cài thêm gì cả** (Zero-Dependency: Không cần tạo venv, không cần `pip install`).
+
+Khi vừa clone về, mở terminal tại thư mục và chạy lần đầu:
+* **Trên Windows:**
+  ```cmd
+  .\guar active
+  ```
+* **Trên macOS / Linux:**
+  ```bash
+  ./guar active
+  ```
+*(Hệ thống sẽ tự kích hoạt bảo vệ và tự động đăng ký lệnh `guar` vào máy để từ lần sau bạn có thể gõ trực tiếp `guar active` ở bất cứ đâu).*
 
 ---
 
-## 🔑 2. Cách Lấy API Key Cho JEV & Cấu Hình `.env`
+## 📋 2. Các Câu Lệnh Chạy
+
+| Chức năng | Câu lệnh |
+| :--- | :--- |
+| **Kích hoạt bảo vệ** | `guar active` |
+| **Kiểm tra trạng thái** | `guar status` |
+| **Hủy kích hoạt** | `guar deactive` |
+
+---
+
+## 🔑 3. Cách Lấy API Key Cho JEV & Cấu Hình `.env`
 
 *(Mặc định hệ thống chạy **Offline 100% miễn phí** không bắt buộc cần key. Nếu muốn kích hoạt thêm AI Cloud Reasoning, làm theo các bước sau):*
 
 1. **Lấy API Key:** Truy cập **[https://openrouter.ai/settings/keys](https://openrouter.ai/settings/keys)** (hoặc [https://typesafe.ai](https://typesafe.ai)) ➔ Đăng nhập ➔ Bấm **"Create Key"** ➔ Copy token dạng `sk-or-v1-...`.
 2. **Cấu hình file `.env`:**
-   - Khi tải/clone về, sao chép hoặc đổi tên file `.env.example` thành `.env`:
+   - Sao chép hoặc đổi tên file `.env.example` thành `.env`:
      ```bash
      cp .env.example .env
      ```
@@ -27,4 +47,3 @@
      OPENROUTER_API_KEY=<lấy_key_theo_hướng_dẫn_ở_bước_1>
      ```
    *(🔒 **Bảo mật:** File `.env` chứa key bí mật đã được cấu hình trong `.gitignore`, Git sẽ tự động bỏ qua và không đọc/commit file này).*
-
