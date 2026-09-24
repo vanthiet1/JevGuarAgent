@@ -10,13 +10,6 @@
 | :--- | :--- | :--- | :--- |
 | **Mọi hệ điều hành (Windows / macOS / Linux)** | `guar active` | `guar status` | `guar deactive` |
 
-> **Chạy trực tiếp không cần `./` hay `.\`:**
-> Gõ ngay trong terminal:
-> ```bash
-> guar active
-> ```
-> *(Lệnh tự động thiết lập bảo vệ toàn diện cho dự án và tự động đăng ký lệnh `guar` toàn cục trên máy).*
-
 ---
 
 ## 🔑 2. Cách Lấy API Key Cho JEV & Cấu Hình `.env`
