@@ -4,12 +4,14 @@
 
 ---
 
-## ⚡ 1. Khởi Chạy Lần Đầu (Chỉ cần có Python)
+## ⚡ 1. Khởi Chạy Lần Đầu
 
-> 💡 **Yêu cầu duy nhất:** Máy tính có cài sẵn **Python (3.8 trở lên)**.  
-> **Hoàn toàn KHÔNG cần cài thêm gì cả** (Zero-Dependency: Không cần tạo venv, không cần `pip install`).
+> 💡 **Tự động 100% (Zero-Setup):**
+> - **Máy đã có Python:** Chạy thông thường ngay lập tức.
+> - **Máy chưa có Python:** Lệnh sẽ **tự động tải và cài đặt Python** rồi tự khởi động bảo vệ luôn.
+> - **Không cần cài thư viện ngoài:** 100% chạy bằng thư viện chuẩn Python (không cần `pip install`).
 
-Khi vừa clone về, mở terminal tại thư mục và chạy lần đầu:
+Khi vừa clone về, mở terminal tại thư mục dự án và chạy:
 * **Trên Windows:**
   ```cmd
   .\guar active

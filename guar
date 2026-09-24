@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # guar - Trình khởi chạy nhanh JevGuarAgent (macOS / Linux / Git Bash / WSL)
+# Tự động phát hiện và cài đặt Python nếu máy chưa có
 # =============================================================================
 set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,8 +13,38 @@ elif command -v python >/dev/null 2>&1; then
 elif command -v py >/dev/null 2>&1; then
     PY_BIN="py"
 else
-    echo "❌ Lỗi: Không tìm thấy Python 3 trên hệ thống! Vui lòng cài đặt Python." >&2
-    exit 1
+    echo "⚠️  [JOG] Máy tính chưa có Python 3. Đang tự động tải và cài đặt Python..."
+    OS="$(uname -s)"
+    if [ "$OS" = "Darwin" ]; then
+        if command -v brew >/dev/null 2>&1; then
+            echo "👉 Đang cài Python 3 qua Homebrew..."
+            brew install python3
+        else
+            echo "👉 Đang tải bộ cài Python chính thức cho macOS..."
+            curl -fsSL https://www.python.org/ftp/python/3.12.3/python-3.12.3-macos11.pkg -o /tmp/python_installer.pkg
+            sudo installer -pkg /tmp/python_installer.pkg -target /
+            rm -f /tmp/python_installer.pkg
+        fi
+    elif [ "$OS" = "Linux" ]; then
+        if command -v apt-get >/dev/null 2>&1; then
+            echo "👉 Đang cài đặt Python 3 qua apt-get..."
+            sudo apt-get update && sudo apt-get install -y python3
+        elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y python3
+        elif command -v pacman >/dev/null 2>&1; then
+            sudo pacman -S --noconfirm python
+        elif command -v apk >/dev/null 2>&1; then
+            sudo apk add python3
+        fi
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        PY_BIN="python3"
+        echo "✅ Đã cài đặt Python 3 thành công! Tiếp tục khởi động JOG..."
+    else
+        echo "❌ Lỗi: Không thể tự động cài đặt Python. Vui lòng cài Python 3.8+ và thử lại." >&2
+        exit 1
+    fi
 fi
 
 exec "$PY_BIN" "$DIR/guar.py" "$@"
