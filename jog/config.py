@@ -34,14 +34,6 @@ class ApiConfig:
     model: str = "deepseek/deepseek-chat" 
 
 
-@dataclass
-class ProxyConfig:
-    """Cấu hình cho Local Intercepting HTTP Proxy."""
-    host: str = "127.0.0.1"
-    port: int = 8080
-    upstream_anthropic_url: str = "https://api.anthropic.com"
-    upstream_openai_url: str = "https://api.openai.com"
-    block_on_reject: bool = True
 
 
 @dataclass
@@ -71,7 +63,6 @@ class LoggingConfig:
 class JogConfig:
     """Cấu hình tổng hợp của hệ thống JOG."""
     api: ApiConfig = field(default_factory=ApiConfig)
-    proxy: ProxyConfig = field(default_factory=ProxyConfig)
     git_hook: GitHookConfig = field(default_factory=GitHookConfig)
     cli: CliConfig = field(default_factory=CliConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
@@ -85,13 +76,6 @@ class JogConfig:
                 "typesafe_api_key": "***" if self.api.typesafe_api_key else None,
                 "timeout_seconds": self.api.timeout_seconds,
                 "enable_offline_fallback": self.api.enable_offline_fallback,
-            },
-            "proxy": {
-                "host": self.proxy.host,
-                "port": self.proxy.port,
-                "upstream_anthropic_url": self.proxy.upstream_anthropic_url,
-                "upstream_openai_url": self.proxy.upstream_openai_url,
-                "block_on_reject": self.proxy.block_on_reject,
             },
             "git_hook": {
                 "leak_risk_threshold": self.git_hook.leak_risk_threshold,
@@ -238,18 +222,6 @@ def load_config(config_path: Optional[str] = None) -> JogConfig:
                 if "enable_offline_fallback" in api_data:
                     config.api.enable_offline_fallback = bool(api_data["enable_offline_fallback"])
 
-                # Nạp ProxyConfig
-                proxy_data = data.get("proxy", {})
-                if "host" in proxy_data:
-                    config.proxy.host = str(proxy_data["host"])
-                if "port" in proxy_data:
-                    config.proxy.port = int(proxy_data["port"])
-                if "upstream_anthropic_url" in proxy_data:
-                    config.proxy.upstream_anthropic_url = str(proxy_data["upstream_anthropic_url"])
-                if "upstream_openai_url" in proxy_data:
-                    config.proxy.upstream_openai_url = str(proxy_data["upstream_openai_url"])
-                if "block_on_reject" in proxy_data:
-                    config.proxy.block_on_reject = bool(proxy_data["block_on_reject"])
 
                 # Nạp GitHookConfig
                 hook_data = data.get("git_hook", {})
@@ -292,16 +264,6 @@ def load_config(config_path: Optional[str] = None) -> JogConfig:
     if env_api_url:
         config.api.typesafe_api_url = env_api_url.strip()
 
-    env_proxy_host = os.environ.get("JOG_PROXY_HOST")
-    if env_proxy_host:
-        config.proxy.host = env_proxy_host.strip()
-
-    env_proxy_port = os.environ.get("JOG_PROXY_PORT")
-    if env_proxy_port:
-        try:
-            config.proxy.port = int(env_proxy_port.strip())
-        except ValueError:
-            pass
 
     env_audit_log = os.environ.get("JOG_AUDIT_LOG")
     if env_audit_log:

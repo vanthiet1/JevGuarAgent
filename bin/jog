@@ -4,7 +4,6 @@ bin/jog
 =======
 Giao diện dòng lệnh chính (Main CLI) của Jev Omnichannel Guardrail.
 Cung cấp các lệnh quản trị:
-  - jog proxy start: Khởi động Local Intercepting Proxy (:8080)
   - jog check prompt <câu_lệnh>: Kiểm tra thủ công rủi ro prompt / bash
   - jog check code <tệp_mã_nguồn>: Kiểm tra sức khỏe mã nguồn và rủi ro tương lai
   - jog audit: Xem nhật ký kiểm toán bảo mật (Audit Trail)
@@ -29,15 +28,6 @@ from jog.config import load_config
 from jog.logger import JogLogger, get_logger
 from jog.jev_engine import JevEngine
 from jog.intercept_cli import run_cli_interceptor
-
-
-def cmd_proxy_start(args):
-    """Khởi động Local Intercepting HTTP Proxy."""
-    from jog.local_proxy import run_proxy_server
-    config = load_config()
-    host = args.host or config.proxy.host
-    port = args.port or config.proxy.port
-    run_proxy_server(host=host, port=port)
 
 
 def cmd_check_prompt(args):
@@ -293,14 +283,10 @@ Chạy lệnh sau để Jev chẩn đoán:
     bin_dir_win = str(BASE_DIR / "bin")
 
     env_unix = {
-        "PATH": f"{bin_dir_posix}:${{env:PATH}}",
-        "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
-        "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"
+        "PATH": f"{bin_dir_posix}:${{env:PATH}}"
     }
     env_win = {
-        "PATH": f"{bin_dir_win};${{env:PATH}}",
-        "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
-        "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"
+        "PATH": f"{bin_dir_win};${{env:PATH}}"
     }
 
     for os_key, env_val in [("terminal.integrated.env.osx", env_unix), ("terminal.integrated.env.linux", env_unix), ("terminal.integrated.env.windows", env_win)]:
@@ -390,20 +376,6 @@ fi
                     with open(cmd_f, "w", encoding="utf-8") as f:
                         f.write(f'@echo off\r\ncall "{BASE_DIR}\\bin\\{tool}.cmd" %*\r\n')
                 print(f"  [✓] Global CLI Shims     : ĐÃ ĐĂNG KÝ ({win_apps})")
-    except Exception:
-        pass
-
-    # 6. Tự động khởi động Local Intercepting Proxy ngầm trên cổng 8080 nếu chưa chạy
-    cfg = load_config()
-    try:
-        from jog.local_proxy import ThreadedHTTPServer, JogProxyHandler
-        server_address = (cfg.proxy.host, cfg.proxy.port)
-        httpd = ThreadedHTTPServer(server_address, JogProxyHandler)
-        proxy_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-        proxy_thread.start()
-        print(f"  [✓] Local Proxy (:8080)  : ĐÃ BẬT NGẦM (http://{cfg.proxy.host}:{cfg.proxy.port})")
-    except OSError:
-        print(f"  [✓] Local Proxy (:8080)  : ĐÃ KẾT NỐI (http://{cfg.proxy.host}:{cfg.proxy.port})")
     except Exception:
         pass
 
@@ -760,31 +732,26 @@ def cmd_audit(args):
 
 def cmd_status(args):
     """Hiển thị thông tin cấu hình và trạng thái hệ thống."""
-    import socket
     JogLogger.print_banner()
     target_repo = get_target_project(getattr(args, "target", None))
     rule_file = target_repo / ".agents" / "rules" / "jog_guardrail.md"
     hook_file = target_repo / ".git" / "hooks" / "pre-commit"
 
+    local_bin = Path.home() / ".local" / "bin"
+    cli_tools = ["guar", "claude", "codex", "gemini"]
+    if sys.platform != "win32":
+        cli_ready = all((local_bin / t).exists() for t in cli_tools)
+    else:
+        win_apps = Path.home() / "AppData" / "Local" / "Microsoft" / "WindowsApps"
+        cli_ready = all((win_apps / f"{t}.cmd").exists() for t in cli_tools)
+
     print(f"🎯 DỰ ÁN MỤC TIÊU: {target_repo}")
     print("TRẠNG THÁI BẢO VỆ HIỆN TẠI:")
-    print(f"  • AI Agent IDE Rules : {'✅ ĐÃ BẬT (.agents/rules/)' if rule_file.exists() else '❌ CHƯA BẬT (Chạy `jog activate` để bật)'}")
+    print(f"  • AI Agent IDE Rules : {'✅ ĐÃ BẬT (.agents/rules/)' if rule_file.exists() else '❌ CHƯA BẬT (Chạy `guar active` để bật)'}")
     print(f"  • Git Pre-Commit     : {'✅ ĐÃ BẬT (.git/hooks/pre-commit)' if hook_file.exists() else '❌ CHƯA BẬT'}")
-
-    config = load_config()
-    proxy_open = False
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.5)
-        res = s.connect_ex((config.proxy.host, config.proxy.port))
-        if res == 0:
-            proxy_open = True
-        s.close()
-    except Exception:
-        pass
-
-    print(f"  • Local Proxy (:8080): {'✅ ĐANG CHẠY' if proxy_open else '⚪ ĐÃ DỪNG (Khởi động: `jog proxy start`)'}")
+    print(f"  • CLI Interceptor    : {'✅ ĐÃ SẴN SÀNG (claude, codex, gemini)' if cli_ready else '⚪ CHƯA ĐĂNG KÝ (Chạy `guar active` để bật)'}")
     print()
+    config = load_config()
     print("CẤU HÌNH CHI TIẾT:")
     print(json.dumps(config.to_dict(), indent=2, ensure_ascii=False))
 
@@ -821,11 +788,6 @@ def main():
     p_deact = subparsers.add_parser("deactivate", aliases=["disable", "deactive"], help="Hủy kích hoạt Guardrail khỏi dự án")
     p_deact.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án (Mặc định: tự nhận diện)")
 
-    # jog proxy start
-    p_proxy = subparsers.add_parser("proxy", help="Quản lý Local Intercepting Proxy")
-    p_proxy.add_argument("action", choices=["start"], help="Hành động proxy")
-    p_proxy.add_argument("--host", type=str, default=None, help="Địa chỉ IP lắng nghe")
-    p_proxy.add_argument("--port", type=int, default=None, help="Cổng lắng nghe (Mặc định: 8080)")
 
     # jog check prompt
     p_prompt = subparsers.add_parser("check", help="Kiểm tra prompt hoặc mã nguồn")
@@ -866,8 +828,6 @@ def main():
         cmd_watch(args)
     elif args.subcommand in ("console", "chat", "repl", "interactive"):
         cmd_console(args)
-    elif args.subcommand == "proxy":
-        cmd_proxy_start(args)
     elif args.subcommand == "check":
         if args.check_type == "prompt":
             cmd_check_prompt(args)

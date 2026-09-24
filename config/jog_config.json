@@ -5,13 +5,6 @@
     "timeout_seconds": 3.0,
     "enable_offline_fallback": true
   },
-  "proxy": {
-    "host": "127.0.0.1",
-    "port": 8080,
-    "upstream_anthropic_url": "https://api.anthropic.com",
-    "upstream_openai_url": "https://api.openai.com",
-    "block_on_reject": true
-  },
   "git_hook": {
     "leak_risk_threshold": 0.6,
     "production_stability_threshold": 7.5,

@@ -226,7 +226,7 @@ class JevEngine:
         self,
         code_content: str,
         file_path: Optional[str] = None,
-        channel: str = "ide_proxy",
+        channel: str = "ide_rules",
         context: Optional[Dict[str, Any]] = None
     ) -> CodeCheckResult:
         """
