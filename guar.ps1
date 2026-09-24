@@ -1,7 +1,3 @@
-# =============================================================================
-# guar.ps1 - Trình khởi chạy nhanh JevGuarAgent trên Windows PowerShell
-# Tự động phát hiện và cài đặt Python nếu máy chưa có
-# =============================================================================
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 function Find-Python {
@@ -26,7 +22,6 @@ if (-not $PythonCmd) {
         Remove-Item $setupPath -ErrorAction SilentlyContinue
     }
 
-    # Cập nhật PATH trong phiên làm việc hiện tại
     $pyDirs = @(
         "$env:LOCALAPPDATA\Programs\Python\Python312",
         "$env:LOCALAPPDATA\Programs\Python\Python312\Scripts"

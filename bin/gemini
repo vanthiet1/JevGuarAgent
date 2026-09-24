@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
-# JOG Shim: gemini (macOS / Linux / Git Bash / WSL)
-# =============================================================================
 set -e
 SHIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SHIM_DIR/.." && pwd)"

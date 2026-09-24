@@ -1,21 +1,9 @@
 #!/usr/bin/env python3
-"""
-bin/jog
-=======
-Giao diện dòng lệnh chính (Main CLI) của Jev Omnichannel Guardrail.
-Cung cấp các lệnh quản trị:
-  - jog check prompt <câu_lệnh>: Kiểm tra thủ công rủi ro prompt / bash
-  - jog check code <tệp_mã_nguồn>: Kiểm tra sức khỏe mã nguồn và rủi ro tương lai
-  - jog audit: Xem nhật ký kiểm toán bảo mật (Audit Trail)
-  - jog status: Kiểm tra trạng thái cấu hình và kết nối TypeSafe API
-  - jog wrap <lệnh> [tham_số...]: Bọc bất kỳ lệnh nào trong Terminal dưới sự bảo vệ của JOG
-"""
 
 import os
 import sys
 from pathlib import Path
 
-# Đảm bảo PYTHONPATH bao gồm thư mục gốc dự án
 BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
@@ -31,9 +19,7 @@ from jog.intercept_cli import run_cli_interceptor
 import re
 from typing import Any, Dict
 
-
 def format_colored_json(obj: Any, indent_prefix: str = "    ") -> str:
-    """Định dạng JSON có màu ANSI đẹp mắt cho Terminal."""
     CYAN = "\033[36m"
     GREEN = "\033[32m"
     YELLOW = "\033[33m"
@@ -49,9 +35,7 @@ def format_colored_json(obj: Any, indent_prefix: str = "    ") -> str:
         colored_lines.append(indent_prefix + l)
     return "\n".join(colored_lines)
 
-
 def cmd_check_prompt(args):
-    """Kiểm tra một chuỗi prompt hoặc lệnh bash."""
     text = " ".join(args.text)
     if not text.strip() and not sys.stdin.isatty():
         text = sys.stdin.read().strip()
@@ -107,9 +91,7 @@ def cmd_check_prompt(args):
 
     sys.exit(0 if res.action_verdict == "allow" else (1 if res.action_verdict == "block_immediately" else 2))
 
-
 def cmd_check_code(args):
-    """Kiểm tra sức khỏe mã nguồn từ tệp hoặc chuỗi."""
     target = args.file_or_snippet
     code_content = ""
     file_path = None
@@ -149,9 +131,7 @@ def cmd_check_code(args):
 
     sys.exit(0 if res.maintainability_verdict == "pass" else (1 if res.maintainability_verdict == "reject_force_agent_rewrite" else 2))
 
-
 def safe_cwd() -> Path:
-    """Trả về thư mục làm việc hiện tại, tự động xử lý khi thư mục bị xóa ngoài hệ thống file."""
     try:
         return Path.cwd().resolve()
     except (FileNotFoundError, OSError):
@@ -160,24 +140,20 @@ def safe_cwd() -> Path:
             return Path(pwd).resolve()
         return BASE_DIR
 
-
 def get_target_project(target_arg=None) -> Path:
-    """Tự động xác định thư mục dự án cần kích hoạt bảo vệ."""
     if target_arg:
         return Path(target_arg).resolve()
     cwd = safe_cwd()
-    # Nếu đang chạy từ project cha chứa JevGuarAgent
+
     if cwd != BASE_DIR and ((cwd / ".git").exists() or (cwd / "package.json").exists() or (cwd / ".agents").exists()):
         return cwd
-    # Nếu đang chạy từ trong chính thư mục JevGuarAgent
+
     parent = BASE_DIR.parent
     if (parent / ".git").exists() or (parent / "package.json").exists():
         return parent
     return cwd
 
-
 def cmd_activate(args):
-    """Kích hoạt toàn diện Jev Omnichannel Guardrail cho dự án."""
     target_repo = get_target_project(getattr(args, "target", None))
 
     jog_bin = BASE_DIR / "bin" / "jog"
@@ -189,7 +165,6 @@ def cmd_activate(args):
     except Exception:
         rel_jog = jog_bin.as_posix()
 
-    # 1. Tạo cấu hình IDE Customizations (.agents)
     agents_dir = target_repo / ".agents"
     rules_dir = agents_dir / "rules"
     skills_dir = agents_dir / "skills" / "jog-guard"
@@ -287,7 +262,6 @@ Chạy lệnh sau để Jev chẩn đoán:
     with open(skill_file, "w", encoding="utf-8") as f:
         f.write(skill_content)
 
-    # 2. Cấu hình VS Code (.vscode/settings.json) cho Terminal, Claude Code và Codex
     vscode_dir = target_repo / ".vscode"
     vscode_dir.mkdir(parents=True, exist_ok=True)
     vscode_settings = vscode_dir / "settings.json"
@@ -320,7 +294,6 @@ Chạy lệnh sau để Jev chẩn đoán:
     except Exception:
         pass
 
-    # 3. Cài đặt Git Pre-Commit Hook
     git_dir = target_repo / ".git"
     if git_dir.exists():
         hooks_dir = git_dir / "hooks"
@@ -358,11 +331,10 @@ sys.exit(execute_pre_commit_guard())
             os.chmod(hook_file, 0o755)
         except Exception:
             pass
-    # 4. Tạo thư mục audit log
+
     logs_dir = target_repo / ".jog" / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    # 5. Tự động đăng ký toàn bộ CLI shims (guar, claude, codex, gemini) toàn cục
     try:
         if sys.platform != "win32":
             local_bin = Path.home() / ".local" / "bin"
@@ -391,7 +363,6 @@ fi
     except Exception:
         pass
 
-    # Tự động chuyển sang màn hình Realtime Monitor ngay lập tức (không cần -w)
     is_interactive = sys.stdin.isatty() and sys.stdout.isatty()
     detach = getattr(args, "detach", False) or getattr(args, "no_watch", False)
     if (is_interactive or getattr(args, "watch", False)) and not detach:
@@ -399,9 +370,7 @@ fi
     else:
         print("🛡️  [✓] Jev Guardrail: Đã kích hoạt bảo vệ toàn hệ thống khi Vibe Code!")
 
-
 def cmd_deactivate(args):
-    """Hủy kích hoạt Jev Omnichannel Guardrail khỏi dự án."""
     target_repo = get_target_project(getattr(args, "target", None))
     print(f"\n🛡️  Đang hủy kích hoạt JOG khỏi: {target_repo}...")
 
@@ -415,7 +384,6 @@ def cmd_deactivate(args):
         skill_file.unlink()
         print("  [✓] Đã xóa kỹ năng IDE: .agents/skills/jog-guard/SKILL.md")
 
-    # Dọn dẹp .vscode/settings.json
     vscode_settings = target_repo / ".vscode" / "settings.json"
     if vscode_settings.exists():
         try:
@@ -448,10 +416,7 @@ def cmd_deactivate(args):
 
     print("✓ Đã hủy kích hoạt JOG thành công.\n")
 
-
-
 def _print_monitor_event(entry: Dict[str, Any]):
-    """Định dạng và in sự kiện thời gian thực ra màn hình terminal."""
     CYAN = "[36m"
     GREEN = "[32m"
     RED = "[31m"
@@ -485,7 +450,6 @@ def _print_monitor_event(entry: Dict[str, Any]):
             snippet_display = snippet_display[:107] + '...'
         print(f'  💬 {BOLD}Nội dung:{RESET} "{snippet_display}"')
 
-    # Trích xuất hoặc dựng lại JSON kết quả trả về từ Jev Engine
     jev_response = details.get("jev_response")
     advisory = details.get("predicted_edge_cases")
     if advisory and not isinstance(advisory, dict) and hasattr(advisory, "intent_description"):
@@ -507,7 +471,6 @@ def _print_monitor_event(entry: Dict[str, Any]):
     print(f"  📦 {CYAN}{BOLD}[JEV ENGINE JSON PHẢN HỒI]:{RESET}")
     print(format_colored_json(jev_response, indent_prefix="    "))
 
-    # Cảnh báo tóm tắt nếu có vi phạm
     issues = details.get("issues") or details.get("detected_flaws") or []
     filtered_issues = [i for i in issues if i != "Câu lệnh an toàn."]
     if filtered_issues:
@@ -521,10 +484,7 @@ def _print_monitor_event(entry: Dict[str, Any]):
 
     print(f"{BLUE}-------------------------------------------------------------------------------{RESET}")
 
-
-
 def cmd_console(args):
-    """Chế độ bảng điều khiển tương tác Realtime liên tục (Interactive Prompt Console)."""
     config = load_config()
     engine = JevEngine(config)
     
@@ -551,10 +511,9 @@ def cmd_console(args):
                 print(f"{YELLOW}👋 Tạm biệt! Đã thoát khỏi JOG Console.{RESET}")
                 break
 
-            # Phân tích an toàn qua JevEngine
             res = engine.check_prompt_and_action(user_input, channel="interactive_console")
             
-            # Giả lập sự kiện để in qua giao diện chuẩn
+
             event = {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "event_type": "prompt_and_action_check",
@@ -577,9 +536,7 @@ def cmd_console(args):
             print(f"\n{YELLOW}👋 Đã thoát khỏi JOG Console.{RESET}")
             break
 
-
 def cmd_watch(args):
-    """Giám sát thời gian thực luồng Prompt và phản hồi bảo mật (Realtime Live Monitor)."""
     target_repo = get_target_project(getattr(args, "target", None))
     log_file = target_repo / ".jog" / "logs" / "audit.log"
     log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -601,7 +558,6 @@ def cmd_watch(args):
     print(f"⚡ Trạng thái       : {GREEN}🟢 ĐANG LẮNG NGHE REALTIME{RESET} (Nhấn {YELLOW}Ctrl+C{RESET} để dừng)", flush=True)
     print(f"{BLUE}-------------------------------------------------------------------------------{RESET}\n", flush=True)
 
-    # Danh sách các file audit log cần theo dõi đồng thời (cục bộ + toàn cục)
     global_log = Path.home() / ".jog" / "logs" / "audit.log"
     global_log.parent.mkdir(parents=True, exist_ok=True)
     if not global_log.exists():
@@ -651,9 +607,7 @@ def cmd_watch(args):
     except KeyboardInterrupt:
         print(f"\n{YELLOW}👋 Đã dừng chế độ giám sát Realtime.{RESET}")
 
-
 def cmd_install_hook(args):
-    """Cài đặt JOG Git Pre-commit Hook vào một repository bất kỳ."""
     target_repo = Path(args.repo_path).resolve()
     git_dir = target_repo / ".git"
     if not git_dir.exists():
@@ -698,9 +652,7 @@ sys.exit(execute_pre_commit_guard())
         pass
     print(f"✅ Đã cài đặt JOG Git Pre-commit Hook thành công vào: {hook_file}")
 
-
 def cmd_audit(args):
-    """Xem nhật ký kiểm toán bảo mật."""
     config = load_config()
     log_file = Path(config.logging.audit_log_file)
     if not log_file.exists():
@@ -726,9 +678,7 @@ def cmd_audit(args):
             print(line.strip())
     print()
 
-
 def cmd_status(args):
-    """Hiển thị thông tin cấu hình và trạng thái hệ thống."""
     JogLogger.print_banner()
     target_repo = get_target_project(getattr(args, "target", None))
     rule_file = target_repo / ".agents" / "rules" / "jog_guardrail.md"
@@ -752,13 +702,10 @@ def cmd_status(args):
     print("CẤU HÌNH CHI TIẾT:")
     print(json.dumps(config.to_dict(), indent=2, ensure_ascii=False))
 
-
 def cmd_wrap(args):
-    """Bọc và bảo vệ một câu lệnh bất kỳ."""
     target_cmd = args.command
     cmd_args = args.args
     sys.exit(run_cli_interceptor(target_cmd, cmd_args))
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -767,26 +714,20 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="subcommand", help="Lệnh chức năng")
 
-    # jog activate / active
     p_act = subparsers.add_parser("activate", aliases=["init", "enable", "active"], help="Kích hoạt toàn diện Guardrail cho dự án")
     p_act.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần bảo vệ (Mặc định: tự nhận diện)")
     p_act.add_argument("-w", "--watch", action="store_true", help="Mở màn hình giám sát Realtime (Mặc định đã tự động bật)")
     p_act.add_argument("-d", "--detach", "--no-watch", action="store_true", help="Chỉ kích hoạt bảo vệ mà không mở màn hình Realtime")
 
-    # jog watch / monitor
     p_watch = subparsers.add_parser("watch", aliases=["monitor", "live", "ui", "dashboard"], help="Giám sát thời gian thực mọi prompt và phản hồi từ AI Agent")
     p_watch.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần theo dõi (Mặc định: tự nhận diện)")
-    # jog console / chat / repl
+
     p_console = subparsers.add_parser("console", aliases=["chat", "repl", "interactive"], help="Bảng điều khiển tương tác Realtime liên tục")
     p_console.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án")
 
-
-    # jog deactivate / deactive
     p_deact = subparsers.add_parser("deactivate", aliases=["disable", "deactive"], help="Hủy kích hoạt Guardrail khỏi dự án")
     p_deact.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án (Mặc định: tự nhận diện)")
 
-
-    # jog check prompt
     p_prompt = subparsers.add_parser("check", help="Kiểm tra prompt hoặc mã nguồn")
     p_check_sub = p_prompt.add_subparsers(dest="check_type", required=True)
     
@@ -798,19 +739,15 @@ def main():
     p_cc.add_argument("file_or_snippet", type=str, help="Đường dẫn tệp hoặc đoạn mã cần kiểm tra")
     p_cc.add_argument("--json", action="store_true", help="Xuất kết quả định dạng JSON cho AI Agent đọc")
 
-    # jog install-hook
     p_hook = subparsers.add_parser("install-hook", help="Cài đặt Git hook cho bất kỳ repo nào")
     p_hook.add_argument("repo_path", nargs="?", default=".", help="Đường dẫn repo Git cần cài đặt (Mặc định: .)")
 
-    # jog audit
     p_audit = subparsers.add_parser("audit", help="Xem nhật ký kiểm toán")
     p_audit.add_argument("-n", "--limit", type=int, default=20, help="Số dòng sự kiện hiển thị")
 
-    # jog status
     p_status = subparsers.add_parser("status", help="Kiểm tra trạng thái cấu hình JOG")
     p_status.add_argument("target", nargs="?", default=None, help="Đường dẫn thư mục dự án cần kiểm tra")
 
-    # jog wrap
     p_wrap = subparsers.add_parser("wrap", help="Bọc thực thi lệnh terminal an toàn")
     p_wrap.add_argument("command", type=str, help="Tên lệnh cần bọc (vd: bash, python)")
     p_wrap.add_argument("args", nargs=argparse.REMAINDER, help="Các tham số dòng lệnh")
@@ -840,7 +777,6 @@ def main():
         cmd_wrap(args)
     else:
         parser.print_help()
-
 
 if __name__ == "__main__":
     main()

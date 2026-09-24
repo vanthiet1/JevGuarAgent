@@ -1,10 +1,3 @@
-"""
-jog/logger.py
-==============
-Mô-đun ghi log kiểm toán (Audit Trail) và hiển thị cảnh báo giao diện dòng lệnh (CLI UI).
-Lưu trữ toàn bộ các sự kiện bảo mật theo định dạng chuẩn JSONL để phục vụ SecOps,
-đồng thời xuất cảnh báo màu sắc trực quan ra Terminal.
-"""
 
 import os
 import sys
@@ -14,7 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# Các mã màu ANSI tiêu chuẩn cho Terminal
 ANSI_RESET = "\033[0m"
 ANSI_BOLD = "\033[1m"
 ANSI_RED = "\033[31m"
@@ -27,12 +19,7 @@ ANSI_WHITE = "\033[37m"
 ANSI_BG_RED = "\033[41m"
 ANSI_BG_YELLOW = "\033[43m"
 
-
 class JogLogger:
-    """
-    Quản lý nhật ký kiểm toán (Audit Logger) cho toàn bộ hệ thống JOG.
-    Ghi nhận mọi hành vi quét, vi phạm, quyết định chặn/cảnh báo.
-    """
 
     def __init__(self, log_path: Optional[str] = None):
         if log_path is None:
@@ -41,7 +28,6 @@ class JogLogger:
         self._ensure_log_dir()
 
     def _ensure_log_dir(self):
-        """Tự động khởi tạo thư mục cha của file log nếu chưa tồn tại."""
         try:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
         except Exception:
@@ -56,16 +42,6 @@ class JogLogger:
         details: Dict[str, Any],
         raw_snippet: Optional[str] = None
     ) -> None:
-        """
-        Ghi một sự kiện bảo mật có cấu trúc vào audit.log (JSON Lines).
-        
-        :param event_type: Loại sự kiện ('prompt_check', 'code_check', 'git_commit', 'proxy_request')
-        :param channel: Kênh phát sinh ('cli', 'proxy', 'git_hook')
-        :param verdict: Quyết định ('allow', 'warn_user', 'block_immediately', 'pass', 'reject_force_agent_rewrite')
-        :param risk_score: Điểm số rủi ro (1-10)
-        :param details: Thông tin chi tiết các vi phạm
-        :param raw_snippet: Trích đoạn mã hoặc lệnh (đã che các key nhạy cảm)
-        """
         record = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": event_type,
@@ -77,7 +53,7 @@ class JogLogger:
             "user": os.environ.get("USER", "unknown"),
         }
         if raw_snippet:
-            # Rút ngắn snippet để log không bị quá tải
+
             record["snippet_preview"] = raw_snippet[:300] + ("..." if len(raw_snippet) > 300 else "")
 
         try:
@@ -87,7 +63,6 @@ class JogLogger:
         except Exception as e:
             sys.stderr.write(f"[JOG Logger Error] Không thể ghi audit log: {e}\n")
 
-        # Đồng thời luôn ghi vào audit log toàn cục để màn hình monitor ở bất kỳ đâu cũng nhận diện
         try:
             global_log = Path.home() / ".jog" / "logs" / "audit.log"
             if global_log.resolve() != self.log_file.resolve():
@@ -97,13 +72,8 @@ class JogLogger:
         except Exception:
             pass
 
-    # =========================================================================
-    # Các hàm hỗ trợ hiển thị Terminal đẹp mắt cho người dùng
-    # =========================================================================
-
     @staticmethod
     def print_banner():
-        """In biểu trưng Jev Omnichannel Guardrail trên Terminal."""
         banner = f"""{ANSI_CYAN}{ANSI_BOLD}
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                   🛡️   JEV OMNICHANNEL GUARDRAIL (JOG)                      ║
@@ -113,7 +83,6 @@ class JogLogger:
 
     @staticmethod
     def print_block_alert(title: str, reason: str, remediation: Optional[str] = None):
-        """In thông báo chặn khẩn cấp màu đỏ nổi bật."""
         border = "═" * 75
         msg = f"""
 {ANSI_RED}{ANSI_BOLD}╔{border}╗
@@ -133,7 +102,6 @@ class JogLogger:
 
     @staticmethod
     def print_warn_alert(title: str, warnings: list) -> None:
-        """In thông báo cảnh báo màu vàng cho lệnh tiềm ẩn nguy cơ."""
         border = "─" * 75
         msg = f"""
 {ANSI_YELLOW}{ANSI_BOLD}┌{border}┐
@@ -150,15 +118,11 @@ class JogLogger:
 
     @staticmethod
     def print_safe_pass(channel: str, message: str):
-        """In thông báo kiểm tra an toàn."""
         print(f"{ANSI_GREEN}🛡️  [JOG {channel.upper()}] An toàn: {message}{ANSI_RESET}", file=sys.stderr)
 
-
-# Khởi tạo singleton logger
 _global_logger: Optional[JogLogger] = None
 
 def get_logger(log_path: Optional[str] = None) -> JogLogger:
-    """Trả về phiên bản Logger toàn cục của JOG."""
     global _global_logger
     if _global_logger is None:
         _global_logger = JogLogger(log_path)

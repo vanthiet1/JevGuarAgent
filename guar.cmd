@@ -1,8 +1,4 @@
 @echo off
-rem =============================================================================
-rem guar.cmd - Trình khởi chạy nhanh JevGuarAgent trên Windows (Command Prompt)
-rem Tự động phát hiện và cài đặt Python nếu máy chưa có
-rem =============================================================================
 setlocal
 set "SCRIPT_DIR=%~dp0"
 

@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""
-guar.py - Trình khởi chạy đa nền tảng (Universal Cross-Platform Launcher)
-Hỗ trợ chạy trực tiếp trên mọi hệ điều hành: Windows, macOS, Linux.
-Ví dụ:
-    python guar.py active
-    python guar.py status
-    python guar.py watch
-"""
 import sys
 import runpy
 from pathlib import Path

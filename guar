@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
-# guar - Trình khởi chạy nhanh JevGuarAgent (macOS / Linux / Git Bash / WSL)
-# Tự động phát hiện và cài đặt Python nếu máy chưa có
-# =============================================================================
 set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

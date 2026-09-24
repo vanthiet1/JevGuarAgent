@@ -1,15 +1,3 @@
-"""
-jog/jev_engine.py
-=================
-Mô-đun lõi phân tích và đánh giá an toàn của Jev Omnichannel Guardrail (JOG).
-Thực hiện 2 chế độ kiểm tra:
-  - Chế độ 1 (Mode 1): Prompt & Action Check (Câu lệnh người dùng hoặc bash command của Agent).
-  - Chế độ 2 (Mode 2): Code Health & Future Risk Check (Mã nguồn chuẩn bị tạo/sửa hoặc Git diff).
-
-Kết nối API TypeSafe: POST https://api.typesafe.ai/v1/systemone (timeout <= 3s).
-Nếu mất mạng, timeout hoặc không có API key, tự động kích hoạt Engine Fallback
-nội bộ dựa trên AST Parser và Hệ quy tắc Heuristics/Regex chuyên sâu.
-"""
 
 import os
 import re
@@ -25,20 +13,14 @@ import urllib.error
 from jog.config import JogConfig, load_config
 from jog.logger import get_logger
 
-
-# =============================================================================
-# HỢP ĐỒNG KẾT QUẢ TRẢ VỀ (DATA CONTRACTS)
-# =============================================================================
-
 @dataclass
 class PromptCheckResult:
-    """Kết quả thẩm định cho Chế độ 1: Prompt & Action Check."""
     has_credential_leak: bool = False
-    destructive_intent_score: float = 1.0  # Thang điểm từ 1.0 đến 10.0
-    action_verdict: str = "allow"          # "allow" | "warn_user" | "block_immediately"
+    destructive_intent_score: float = 1.0
+    action_verdict: str = "allow"
     details: List[str] = field(default_factory=list)
     remediation: Optional[str] = None
-    engine_source: str = "local_fallback"  # "typesafe_cloud" | "openrouter_cloud" | "local_fallback"
+    engine_source: str = "local_fallback"
     raw_json: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -54,19 +36,15 @@ class PromptCheckResult:
             d["raw_model_response"] = self.raw_json
         return d
 
-
 @dataclass
 class CodeCheckResult:
-    """Kết quả thẩm định cho Chế độ 2: Code Health & Future Risk Check."""
     future_security_risk: bool = False
-    production_stability_score: float = 1.0  # Thang điểm từ 1.0 đến 10.0 (càng cao càng nguy hiểm)
+    production_stability_score: float = 1.0
     architecture_flaw_type: str = "clean_and_safe"
-    # Lựa chọn: "clean_and_safe" | "resource_leak_or_dos_risk" |
-    #          "broken_logic_or_race_condition" | "dependency_or_security_flaw" |
-    #          "spaghetti_anti_pattern"
+
     maintainability_verdict: str = "pass"
-    # Lựa chọn: "pass" | "warn_dev_needs_refactor" | "reject_force_agent_rewrite"
-    leak_risk: float = 0.0                   # Nguy cơ rò rỉ bí mật trong code (0.0 -> 1.0)
+
+    leak_risk: float = 0.0
     detected_flaws: List[str] = field(default_factory=list)
     remediation_suggestions: List[str] = field(default_factory=list)
     engine_source: str = "local_fallback"
@@ -83,10 +61,8 @@ class CodeCheckResult:
             "engine_source": self.engine_source,
         }
 
-
 @dataclass
 class ArchitectureAdvisory:
-    """Khuyến nghị tối ưu kiến trúc tiên lượng khi nhận diện intent trong chat."""
     detected_intent: str
     intent_description: str
     risk_factors: List[str]
@@ -101,11 +77,6 @@ class ArchitectureAdvisory:
             "recommended_patterns": self.recommended_patterns,
             "injected_prompt_directive": self.injected_prompt_directive,
         }
-
-
-# =============================================================================
-# HỆ QUY TẮC NHẬN DẠNG SECRETS & PATTERNS
-# =============================================================================
 
 SECRET_PATTERNS: List[Tuple[str, str, float]] = [
     (
@@ -175,20 +146,11 @@ SECRET_PATTERNS: List[Tuple[str, str, float]] = [
     )
 ]
 
-
 class JevEngine:
-    """
-    Bộ não trung tâm thực thi Guardrail.
-    Cung cấp giao diện đồng nhất để kiểm tra Prompt, Bash action, và Code health.
-    """
 
     def __init__(self, config: Optional[JogConfig] = None):
         self.config = config or load_config()
         self.logger = get_logger(self.config.logging.audit_log_file)
-
-    # =========================================================================
-    # CHẾ ĐỘ 1: PROMPT & ACTION CHECK
-    # =========================================================================
 
     def check_prompt_and_action(
         self,
@@ -196,11 +158,6 @@ class JevEngine:
         channel: str = "cli",
         context: Optional[Dict[str, Any]] = None
     ) -> PromptCheckResult:
-        """
-        Kiểm tra câu lệnh người dùng hoặc lệnh bash mà AI Agent dự định chạy.
-        1. Gửi tới TypeSafe API (nếu có key và kết nối thông suốt, timeout <= 3s).
-        2. Nếu API không phản hồi, tự động chuyển sang Fallback Heuristics.
-        """
         if not prompt_or_command or not prompt_or_command.strip():
             return PromptCheckResult(
                 has_credential_leak=False,
@@ -210,21 +167,15 @@ class JevEngine:
                 engine_source="local_fallback"
             )
 
-        # Thử gọi TypeSafe Cloud API trước nếu có API Key
         if self.config.api.typesafe_api_key:
             cloud_res = self._call_typesafe_api_mode1(prompt_or_command, channel, context)
             if cloud_res is not None:
                 self._record_audit_mode1(prompt_or_command, channel, cloud_res)
                 return cloud_res
 
-        # Sử dụng Bộ phân tích Offline Fallback
         fallback_res = self._offline_analyze_mode1(prompt_or_command, channel)
         self._record_audit_mode1(prompt_or_command, channel, fallback_res)
         return fallback_res
-
-    # =========================================================================
-    # CHẾ ĐỘ 2: CODE HEALTH & FUTURE RISK CHECK
-    # =========================================================================
 
     def check_code_health(
         self,
@@ -233,10 +184,6 @@ class JevEngine:
         channel: str = "ide_rules",
         context: Optional[Dict[str, Any]] = None
     ) -> CodeCheckResult:
-        """
-        Đoán trước các rủi ro mã nguồn trong tương lai (Future-Proof Code Inspection).
-        Kiểm tra SQLi, Memory Leaks, N+1 Query, Race Condition, Missing Timeout.
-        """
         if not code_content or not code_content.strip():
             return CodeCheckResult(
                 future_security_risk=False,
@@ -246,34 +193,22 @@ class JevEngine:
                 engine_source="local_fallback"
             )
 
-        # Thử gọi TypeSafe Cloud API nếu có cấu hình
         if self.config.api.typesafe_api_key:
             cloud_res = self._call_typesafe_api_mode2(code_content, file_path, channel, context)
             if cloud_res is not None:
                 self._record_audit_mode2(code_content, file_path, channel, cloud_res)
                 return cloud_res
 
-        # Sử dụng Bộ phân tích Code Offline Fallback chuyên sâu
         fallback_res = self._offline_analyze_mode2(code_content, file_path)
         self._record_audit_mode2(code_content, file_path, channel, fallback_res)
         return fallback_res
 
-    # =========================================================================
-    # CỐ VẤN KIẾN TRÚC TIÊN LƯỢNG (PROACTIVE ARCHITECTURE ADVISOR)
-    # =========================================================================
-
     def predict_architecture_advisory(self, user_prompt: str) -> Optional[ArchitectureAdvisory]:
-        """
-        Phân tích ý định (intent) trong câu chat của người dùng (ví dụ: 'thêm tính năng realtime'),
-        chẩn đoán trước các nguy cơ kỹ thuật tương lai và tự động tạo ra khuyến nghị kiến trúc
-        kèm các chỉ thị bắt buộc để Agent sinh code tối ưu ngay từ đầu.
-        """
         if not user_prompt or not user_prompt.strip():
             return None
 
         prompt_lower = user_prompt.lower()
 
-        # 1. Ý định Realtime / WebSocket / EventStream
         if re.search(r"(?i)\b(?:realtime|real-time|websocket|socket\.io|sse|server-sent|pubsub|pub/sub|thời\s+gian\s+thực)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="realtime_streaming_architecture",
@@ -299,7 +234,6 @@ class JevEngine:
                 )
             )
 
-        # 2. Ý định Truy vấn cơ sở dữ liệu / ORM / CRUD
         if re.search(r"(?i)\b(?:database|cơ\s+sở\s+dữ\s+liệu|csdl|bảng\s+dữ\s+liệu|truy\s+vấn|sql|query|orm|sqlite|postgresql|mysql|mongodb)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="database_persistence_layer",
@@ -322,7 +256,6 @@ class JevEngine:
                 )
             )
 
-        # 3. Ý định Gọi API mạng / Tích hợp bên ngoài
         if re.search(r"(?i)\b(?:gọi\s+api|call\s+api|tích\s+hợp\s+api|fetch|requests\.(?:get|post)|http\s+client|webhook|third-party)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="external_network_integration",
@@ -344,7 +277,6 @@ class JevEngine:
                 )
             )
 
-        # 4. Ý định Xác thực / Đăng nhập / Mật khẩu
         if re.search(r"(?i)\b(?:đăng\s+nhập|login|xác\s+thực|authentication|auth|mật\s+khẩu|password|jwt|token|session)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="authentication_security",
@@ -366,7 +298,6 @@ class JevEngine:
                 )
             )
 
-        # 5. Ý định Xử lý đa luồng / Tác vụ nền
         if re.search(r"(?i)\b(?:background\s+task|tiến\s+trình\s+nền|đa\s+luồng|threading|asyncio|worker|hàng\s+đợi|celery|queue)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="concurrency_and_background_jobs",
@@ -388,7 +319,6 @@ class JevEngine:
                 )
             )
 
-        # 6. Ý định Upload tệp tin / Xử lý I/O tệp
         if re.search(r"(?i)\b(?:upload|tải\s+lên|multipart|file\s+handling|xử\s+lý\s+tệp|avatar|ảnh|image\s+upload|storage)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="file_upload_and_storage",
@@ -414,7 +344,6 @@ class JevEngine:
                 )
             )
 
-        # 7. Ý định Thanh toán / Giao dịch tiền tệ / Khấu trừ số dư
         if re.search(r"(?i)\b(?:thanh\s+toán|payment|checkout|tiền|money|giao\s+dịch|transaction|ví|wallet|balance|trừ\s+tiền|vnpay|momo|stripe|paypal)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="payment_and_financial_transactions",
@@ -440,7 +369,6 @@ class JevEngine:
                 )
             )
 
-        # 8. Ý định Bộ nhớ đệm / Caching
         if re.search(r"(?i)\b(?:cache|caching|redis|memcached|lru|bộ\s+nhớ\s+đệm)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="caching_and_performance_optimization",
@@ -463,7 +391,6 @@ class JevEngine:
                 )
             )
 
-        # 9. Ý định Nhận dữ liệu đầu vào Form / API Input Validation
         if re.search(r"(?i)\b(?:form|biểu\s+mẫu|input\s+validation|xác\s+thực\s+dữ\s+liệu|nhập\s+liệu|sanitize|xss)\b", prompt_lower):
             return ArchitectureAdvisory(
                 detected_intent="input_validation_and_sanitization",
@@ -488,22 +415,16 @@ class JevEngine:
 
         return None
 
-    # =========================================================================
-    # LOGIC KẾT NỐI TYPESAFE API (HTTP POST /v1/systemone)
-    # =========================================================================
-
     def _call_typesafe_api_mode1(
         self,
         text: str,
         channel: str,
         context: Optional[Dict[str, Any]]
     ) -> Optional[PromptCheckResult]:
-        """Gửi request thẩm định Mode 1 tới OpenRouter hoặc TypeSafe API."""
         api_key = self.config.api.typesafe_api_key
         if not api_key:
             return None
 
-        # Trường hợp sử dụng OpenRouter API
         if api_key.startswith("sk-" + "or-"):
             url = "https://openrouter.ai/api/v1/chat/completions"
             headers = {
@@ -545,7 +466,6 @@ class JevEngine:
                 pass
             return None
 
-        # Trường hợp sử dụng TypeSafe Enterprise API
         url = self.config.api.typesafe_api_url
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -585,7 +505,6 @@ class JevEngine:
         channel: str,
         context: Optional[Dict[str, Any]]
     ) -> Optional[CodeCheckResult]:
-        """Gửi request thẩm định Mode 2 tới TypeSafe API."""
         url = self.config.api.typesafe_api_url
         headers = {
             "Authorization": f"Bearer {self.config.api.typesafe_api_key}",
@@ -620,65 +539,49 @@ class JevEngine:
             pass
         return None
 
-    # =========================================================================
-    # BỘ PHÂN TÍCH OFFLINE FALLBACK MODE 1 (PROMPT & ACTION)
-    # =========================================================================
-
     def _offline_analyze_mode1(self, text: str, channel: str) -> PromptCheckResult:
-        """Phân tích bí mật rò rỉ và lệnh terminal nguy hiểm bằng Heuristics."""
         details = []
         has_leak = False
         max_destructive_score = 1.0
 
-        # 1. Quét rò rỉ bí mật / token / credentials
         detected_secrets = self.detect_secrets(text)
         if detected_secrets:
             has_leak = True
             for s_name, s_match in detected_secrets:
                 details.append(f"Phát hiện rò rỉ bí mật [{s_name}]: {s_match}")
 
-        # 2. Quét các lệnh Terminal hủy diệt nghiêm trọng (BLOCK)
-        # a. Lệnh rm phá hoại root / home / system dirs
         if self._is_destructive_rm_root(text):
             details.append("Chặn lệnh phá hoại nghiêm trọng [rm đệ quy trên thư mục gốc hoặc người dùng]")
             max_destructive_score = max(max_destructive_score, 10.0)
 
-        # b. Lệnh ghi đè đĩa hoặc định dạng ổ cứng
         if re.search(r"(?i)\b(?:dd\s+if=/dev/(?:zero|urandom|null)|mkfs(?:\.[a-z0-9]+)?\s+/dev/|fdisk\s+/dev/|wipefs\b)", text):
             details.append("Chặn lệnh phá hoại nghiêm trọng [Ghi đè hoặc phá hủy phân vùng ổ đĩa]")
             max_destructive_score = max(max_destructive_score, 10.0)
 
-        # c. Fork bomb
         if re.search(r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:|fork\s+while\s+fork", text):
             details.append("Chặn lệnh phá hoại nghiêm trọng [Fork Bomb làm tê liệt tài nguyên]")
             max_destructive_score = max(max_destructive_score, 10.0)
 
-        # d. Chmod toàn quyền nguy hiểm
         if re.search(r"(?i)\bchmod\s+(?:-[a-z]*R[a-z]*\s+)?(?:777|a\+rwx)\s+(?:/|/\*|/etc|/var|/usr)(?:\s|$|;)", text):
             details.append("Chặn lệnh phá hoại nghiêm trọng [Phá vỡ phân quyền hệ điều hành chmod 777 -R]")
             max_destructive_score = max(max_destructive_score, 9.5)
 
-        # e. Tải và thực thi script trực tiếp vào shell (Exfiltration / RCE pipe)
         if re.search(r"(?i)\b(?:curl|wget)\s+[^|;&]+\s*\|\s*(?:ba|z|da)?sh(?:\s|$)", text):
             details.append("Chặn lệnh phá hoại nghiêm trọng [Tải và thực thi mã độc qua pipe curl|bash]")
             max_destructive_score = max(max_destructive_score, 9.5)
 
-        # f. Truy cập file mật khẩu nhạy cảm của hệ điều hành
         if re.search(r"(?i)\b(?:cat|head|tail|less|more|nano|vim?)\s+(?:/etc/shadow|/etc/sudoers)\b", text):
             details.append("Chặn thao tác nguy hiểm [Đọc file cấu hình bảo mật /etc/shadow hoặc sudoers]")
             max_destructive_score = max(max_destructive_score, 9.0)
 
-        # g. Vô hiệu hóa tường lửa và bảo mật
         if re.search(r"(?i)\b(?:ufw\s+disable|iptables\s+-F|setenforce\s+0)\b", text):
             details.append("Chặn lệnh nguy hiểm [Vô hiệu hóa tường lửa hoặc SELinux]")
             max_destructive_score = max(max_destructive_score, 9.0)
 
-        # h. Xóa sạch cơ sở dữ liệu (DROP DATABASE / TRUNCATE)
         if re.search(r"(?i)\b(?:DROP\s+DATABASE|DROP\s+TABLE(?:\s+IF\s+EXISTS)?\s+\w+|TRUNCATE\s+TABLE)\b", text):
             details.append("Chặn lệnh phá hoại nghiêm trọng [DROP DATABASE hoặc DROP TABLE]")
             max_destructive_score = max(max_destructive_score, 9.5)
 
-        # 3. Quét các lệnh có rủi ro vừa phải cần cảnh báo (WARN USER)
         if max_destructive_score < 8.0:
             if re.search(r"(?i)\bdocker\s+(?:rm\s+-f|system\s+prune\s+-a|kill)\b", text):
                 details.append("Cảnh báo rủi ro [Xóa hoặc dừng cưỡng bức toàn bộ container Docker]")
@@ -692,17 +595,14 @@ class JevEngine:
                 details.append("Cảnh báo rủi ro [Hủy tiến trình cưỡng bức hàng loạt]")
                 max_destructive_score = max(max_destructive_score, 6.0)
 
-            # rm -rf trên thư mục con trong dự án
             if re.search(r"(?i)\brm\s+-[a-z]*r[a-z]*f[a-z]*\s+[a-zA-Z0-9_.-]+", text) and max_destructive_score < 5.5:
                 details.append("Cảnh báo rủi ro [Xóa tệp/thư mục đệ quy qua rm -rf]")
                 max_destructive_score = max(max_destructive_score, 5.5)
 
-            # Đọc file bí mật cục bộ
             if re.search(r"(?i)\b(?:cat|tail|head)\s+(?:\.env|\.env\.[a-z]+|id_rsa|id_ed25519)\b", text):
                 details.append("Cảnh báo rủi ro [Hiển thị nội dung tệp bí mật .env hoặc SSH key]")
                 max_destructive_score = max(max_destructive_score, 6.5)
 
-        # Đưa ra phán quyết (Verdict)
         if has_leak or max_destructive_score >= 8.5:
             action_verdict = "block_immediately"
             remediation = (
@@ -726,7 +626,6 @@ class JevEngine:
         )
 
     def _is_destructive_rm_root(self, cmd: str) -> bool:
-        """Kiểm tra xem lệnh rm có cờ đệ quy và nhắm vào root/home/system dirs không."""
         if not re.search(r"(?i)\brm\b", cmd):
             return False
         has_recursive = bool(re.search(r"(?i)(?:-[a-z]*r|--recursive)", cmd))
@@ -736,20 +635,7 @@ class JevEngine:
         ))
         return has_recursive and has_root_target
 
-    # =========================================================================
-    # BỘ PHÂN TÍCH OFFLINE FALLBACK MODE 2 (CODE HEALTH & FUTURE RISKS)
-    # =========================================================================
-
     def _offline_analyze_mode2(self, code: str, file_path: Optional[str]) -> CodeCheckResult:
-        """
-        Chẩn đoán chuyên sâu các nguy cơ tiềm ẩn trong code:
-        - Rò rỉ bí mật mã hóa cứng (Hardcoded Secrets).
-        - SQL Injection qua chuỗi động / f-strings.
-        - Memory / Resource Leaks (mở file/socket không đóng).
-        - N+1 Query Patterns (gọi query trong vòng lặp).
-        - Race Conditions (biến toàn cục chia sẻ thiếu Lock).
-        - Thiếu timeout khi gọi mạng / HTTP (Production Freeze).
-        """
         detected_flaws = []
         remediations = []
         security_risk = False
@@ -757,7 +643,6 @@ class JevEngine:
         flaw_type = "clean_and_safe"
         leak_risk = 0.0
 
-        # 1. Kiểm tra bí mật trong mã nguồn
         secrets_found = self.detect_secrets(code)
         if secrets_found:
             security_risk = True
@@ -768,7 +653,6 @@ class JevEngine:
                 detected_flaws.append(f"[Lộ Secret] Khóa nhạy cảm ({s_name}): {s_match}")
             remediations.append("Đưa các API keys, passwords vào biến môi trường (.env) và sử dụng os.getenv().")
 
-        # 2. Phân tích cú pháp AST cho tệp Python nếu khả dụng
         is_python = True
         if file_path:
             ext = os.path.splitext(file_path)[1].lower()
@@ -785,7 +669,6 @@ class JevEngine:
             if ast_type != "clean_and_safe":
                 flaw_type = ast_type
 
-        # 3. Phân tích Heuristics đa ngôn ngữ (JavaScript, TypeScript, Go, Java, Python, SQL)
         poly_flaws, poly_remediations, poly_stability, poly_security, poly_type = self._polyglot_regex_inspect(code)
         detected_flaws.extend(poly_flaws)
         remediations.extend(poly_remediations)
@@ -795,7 +678,6 @@ class JevEngine:
         if flaw_type == "clean_and_safe" and poly_type != "clean_and_safe":
             flaw_type = poly_type
 
-        # 4. Xác định phán quyết (Verdict)
         if stability_score >= 7.5 or security_risk or leak_risk > 0.6:
             maintainability_verdict = "reject_force_agent_rewrite"
         elif stability_score >= 4.5:
@@ -815,7 +697,6 @@ class JevEngine:
         )
 
     def detect_secrets(self, text: str) -> List[Tuple[str, str]]:
-        """Nhận diện các mẫu secret trong văn bản và che đi ký tự nhạy cảm."""
         found = []
         for name, pattern, _ in SECRET_PATTERNS:
             for match in re.finditer(pattern, text):
@@ -828,7 +709,6 @@ class JevEngine:
         return found
 
     def _ast_inspect_python(self, code: str) -> Tuple[List[str], List[str], float, bool, str]:
-        """Phân tích AST sâu cho mã Python để tìm lỗi thiết kế và rủi ro sập hệ thống."""
         flaws = []
         remediations = []
         stability_score = 1.0
@@ -877,14 +757,14 @@ class JevEngine:
                 self.in_loop -= 1
 
             def visit_JoinedStr(self, node):
-                # Phát hiện bất kỳ f-string nào chứa từ khóa SQL nối biến trực tiếp
+
                 text_chunks = []
                 for val in node.values:
                     if isinstance(val, ast.Constant) and isinstance(val.value, str):
                         text_chunks.append(val.value)
                 combined = " ".join(text_chunks).upper()
                 if any(k in combined for k in ["SELECT", "INSERT INTO", "UPDATE", "DELETE FROM"]):
-                    # Có ít nhất 1 biểu thức biến được ghép vào f-string
+
                     if any(not isinstance(val, ast.Constant) for val in node.values):
                         self.has_sqli = True
                 self.generic_visit(node)
@@ -892,14 +772,13 @@ class JevEngine:
             def visit_Call(self, node):
                 func_name = self._get_call_name(node.func)
                 
-                # 1. N+1 Query: Gọi DB trong vòng lặp
+
                 if self.in_loop > 0 and func_name:
                     if any(term in func_name.lower() for term in [
                         "execute", "query", "filter_by", "find_one", "objects.get", "objects.filter"
                     ]):
                         self.has_n_plus_one = True
 
-                # 2. SQLi qua execute()
                 if func_name and any(term in func_name.lower() for term in ["execute", "raw_query"]):
                     if node.args:
                         first_arg = node.args[0]
@@ -908,7 +787,6 @@ class JevEngine:
                         elif isinstance(first_arg, ast.BinOp) and isinstance(first_arg.op, (ast.Mod, ast.Add)):
                             self.has_sqli = True
 
-                # 3. Missing Timeout khi gọi HTTP
                 if func_name and any(func_name.startswith(pfx) for pfx in [
                     "requests.get", "requests.post", "requests.put", "requests.delete",
                     "urllib.request.urlopen", "session.get", "session.post"
@@ -917,7 +795,6 @@ class JevEngine:
                     if not has_timeout:
                         self.has_missing_timeout = True
 
-                # 4. Ghi nhận open() để kiểm tra xem có trong with không
                 if func_name == "open":
                     self.all_open_calls.append(node)
 
@@ -937,13 +814,11 @@ class JevEngine:
         except Exception:
             pass
 
-        # Kiểm tra unclosed open()
         for c in visitor.all_open_calls:
             if c not in visitor.open_in_with:
                 visitor.has_unclosed_open = True
                 break
 
-        # Đánh giá kết quả từ AST
         if visitor.has_sqli:
             security_risk = True
             stability_score = max(stability_score, 9.0)
@@ -972,14 +847,12 @@ class JevEngine:
         return flaws, remediations, stability_score, security_risk, flaw_type
 
     def _polyglot_regex_inspect(self, code: str) -> Tuple[List[str], List[str], float, bool, str]:
-        """Kiểm tra quy tắc Heuristics đa ngôn ngữ qua biểu thức chính quy."""
         flaws = []
         remediations = []
         stability_score = 1.0
         security_risk = False
         flaw_type = "clean_and_safe"
 
-        # 1. SQL Injection trong đa ngôn ngữ (JS, Go, PHP, Java, Python f-string SQL)
         sqli_patterns = [
             (
                 r"(?i)f\"[^\"]*(?:SELECT|INSERT|UPDATE|DELETE)\b[^\"]*\{.+?\}[^\"]*\"",
@@ -1010,13 +883,11 @@ class JevEngine:
                 flaws.append(f"[SQL Injection Đa ngôn ngữ] {desc}")
                 remediations.append("Chuyển sang Prepared Statement hoặc Parameterized Binding.")
 
-        # 2. Missing Timeout trong JavaScript fetch & axios
         if re.search(r"(?i)\bfetch\s*\([^,)]+\)(?![\s\S]*?signal\b)", code):
             stability_score = max(stability_score, 6.0)
             flaws.append("[Thiếu Network Timeout] Hàm fetch() không sử dụng AbortController hoặc timeout signal.")
             remediations.append("Truyền { signal: AbortSignal.timeout(5000) } vào fetch().")
 
-        # 3. Race Condition & Mutex Check
         if re.search(r"(?i)(?:threading\.Thread|asyncio\.create_task|go\s+func)", code):
             if re.search(r"(?i)\bglobal\s+[a-zA-Z0-9_]+", code) and not re.search(r"(?i)(?:Lock|Mutex|Semaphore)", code):
                 stability_score = max(stability_score, 8.0)
@@ -1024,7 +895,6 @@ class JevEngine:
                 flaws.append("[Race Condition] Sửa đổi biến toàn cục trong đa luồng / async mà không có cơ chế Lock.")
                 remediations.append("Sử dụng threading.Lock() hoặc asyncio.Lock() khi truy cập tài nguyên chia sẻ.")
 
-        # 4. Dangerous Command Execution in Code (Command Injection)
         if re.search(r"(?i)(?:os\.system|subprocess\.call|child_process\.exec)\s*\(\s*f?['\"][^'\"]*\{.+?\}", code):
             security_risk = True
             stability_score = max(stability_score, 9.5)
@@ -1034,12 +904,7 @@ class JevEngine:
 
         return flaws, remediations, stability_score, security_risk, flaw_type
 
-    # =========================================================================
-    # GHI AUDIT TRAIL LOG
-    # =========================================================================
-
     def _record_audit_mode1(self, text: str, channel: str, res: PromptCheckResult) -> None:
-        """Ghi sự kiện Mode 1 vào audit log."""
         advisory = self.predict_architecture_advisory(text)
         jev_response = res.to_dict()
         if advisory:
@@ -1068,7 +933,6 @@ class JevEngine:
         channel: str,
         res: CodeCheckResult
     ) -> None:
-        """Ghi sự kiện Mode 2 vào audit log."""
         jev_response = res.to_dict()
         self.logger.log_event(
             event_type="code_health_check",
