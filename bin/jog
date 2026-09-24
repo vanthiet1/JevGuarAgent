@@ -542,9 +542,9 @@ fi
                     pass
             jog_file = local_bin / "jog"
             try:
-                with open(jog_file, "w", encoding="utf-8") as f:
-                    f.write(f'#!/usr/bin/env bash\nexec python3 "{BASE_DIR}/guar.py" "$@"\n')
-                jog_file.chmod(0o755)
+                if jog_file.is_symlink() or jog_file.exists():
+                    jog_file.unlink()
+                jog_file.symlink_to(BASE_DIR / "bin" / "jog")
             except Exception:
                 pass
         else:
