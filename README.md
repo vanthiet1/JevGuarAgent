@@ -6,11 +6,11 @@
 
 ## ⚡ 1. Các Câu Lệnh Chạy
 
-| Hệ điều hành | Kích hoạt bảo vệ | Xem Radar theo dõi (Watch) | Bảng gõ Prompt test | Hủy kích hoạt |
-| :--- | :--- | :--- | :--- | :--- |
-| **Windows (CMD / PowerShell)** | `.\guar active` | `.\guar watch` | `.\guar console` | `.\guar deactive` |
-| **macOS / Linux** | `./guar active` | `./guar watch` | `./guar console` | `./guar deactive` |
-| **Universal (Mọi OS)** | `python guar.py active` | `python guar.py watch` | `python guar.py console` | `python guar.py deactive` |
+| Hệ điều hành | Kích hoạt bảo vệ | Xem Radar theo dõi (Watch) | Hủy kích hoạt |
+| :--- | :--- | :--- | :--- |
+| **Windows (CMD / PowerShell)** | `.\guar active` | `.\guar watch` | `.\guar deactive` |
+| **macOS / Linux** | `./guar active` | `./guar watch` | `./guar deactive` |
+| **Universal (Mọi OS)** | `python guar.py active` | `python guar.py watch` | `python guar.py deactive` |
 
 > **Chạy nhanh 1 bước:**
 > Chạy `.\guar active` (Windows) hoặc `./guar active` (Mac/Linux) để tự động liên kết rule, cấu hình VS Code và bật radar theo dõi prompt trực tiếp.
