@@ -48,4 +48,3 @@ Khi vừa clone về, mở terminal tại thư mục dự án và chạy:
      ```env
      OPENROUTER_API_KEY=<lấy_key_theo_hướng_dẫn_ở_bước_1>
      ```
-   *(🔒 **Bảo mật:** File `.env` chứa key bí mật đã được cấu hình trong `.gitignore`, Git sẽ tự động bỏ qua và không đọc/commit file này).*
