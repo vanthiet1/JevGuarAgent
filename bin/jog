@@ -401,15 +401,22 @@ Chạy lệnh sau để Jev chẩn đoán:
         except Exception:
             settings_data = {}
 
-    bin_dir_posix = (BASE_DIR / "bin").as_posix()
-    bin_dir_win = str(BASE_DIR / "bin")
-
-    env_unix = {
-        "PATH": f"{bin_dir_posix}:${{env:PATH}}"
-    }
-    env_win = {
-        "PATH": f"{bin_dir_win};${{env:PATH}}"
-    }
+    if target_repo.resolve() == BASE_DIR.resolve():
+        env_unix = {
+            "PATH": "${workspaceFolder}/bin:${env:HOME}/.local/bin:${env:PATH}"
+        }
+        env_win = {
+            "PATH": "${workspaceFolder}\\bin;${env:USERPROFILE}\\AppData\\Local\\Microsoft\\WindowsApps;${env:PATH}"
+        }
+    else:
+        bin_dir_posix = (BASE_DIR / "bin").as_posix()
+        bin_dir_win = str(BASE_DIR / "bin")
+        env_unix = {
+            "PATH": f"{bin_dir_posix}:${{env:HOME}}/.local/bin:${{env:PATH}}"
+        }
+        env_win = {
+            "PATH": f"{bin_dir_win};${{env:USERPROFILE}}\\AppData\\Local\\Microsoft\\WindowsApps;${{env:PATH}}"
+        }
 
     for os_key, env_val in [("terminal.integrated.env.osx", env_unix), ("terminal.integrated.env.linux", env_unix), ("terminal.integrated.env.windows", env_win)]:
         if os_key not in settings_data or not isinstance(settings_data[os_key], dict):
