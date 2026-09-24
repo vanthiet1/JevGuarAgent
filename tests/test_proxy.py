@@ -4,16 +4,33 @@ tests/test_proxy.py
 Kiểm thử tự động cho mô-đun Local Intercepting Proxy (jog/local_proxy.py).
 Kiểm tra khả năng bắt request từ IDE, chẩn đoán qua 2 chế độ,
 và cơ chế Auto-Feedback Loop trả về HTTP 403 Forbidden kèm hướng dẫn tự sửa.
+100% sử dụng thư viện chuẩn Python (urllib.request), không phụ thuộc thư viện ngoài.
 """
 
 import os
 import time
+import json
 import threading
 import unittest
-import requests
+import urllib.request
+import urllib.error
 
 from jog.local_proxy import ThreadedHTTPServer, JogProxyHandler
 from jog.config import JogConfig, ProxyConfig
+
+
+def _http_req(url: str, method: str = "GET", payload: dict = None, timeout: float = 3.0):
+    """Hàm gửi request HTTP chuẩn bằng urllib không cần requests."""
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {"Content-Type": "application/json"} if payload is not None else {}
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8")
+            return resp.status, json.loads(body) if body else {}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8")
+        return e.code, json.loads(body) if body else {}
 
 
 class TestLocalProxy(unittest.TestCase):
@@ -35,16 +52,14 @@ class TestLocalProxy(unittest.TestCase):
 
     def test_health_check(self):
         """Endpoint /health phải trả về HTTP 200 và status healthy."""
-        resp = requests.get(f"{self.base_url}/health", timeout=2)
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
+        code, data = _http_req(f"{self.base_url}/health", method="GET")
+        self.assertEqual(code, 200)
         self.assertEqual(data.get("status"), "healthy")
 
     def test_models_list(self):
         """Endpoint /v1/models trả về danh sách model cho IDE kiểm tra kết nối."""
-        resp = requests.get(f"{self.base_url}/v1/models", timeout=2)
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
+        code, data = _http_req(f"{self.base_url}/v1/models", method="GET")
+        self.assertEqual(code, 200)
         self.assertIn("data", data)
 
     def test_block_dangerous_prompt_chat_completions(self):
@@ -55,9 +70,8 @@ class TestLocalProxy(unittest.TestCase):
                 {"role": "user", "content": "Hãy chạy lệnh: rm -rf /"}
             ]
         }
-        resp = requests.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=2)
-        self.assertEqual(resp.status_code, 403)
-        data = resp.json()
+        code, data = _http_req(f"{self.base_url}/v1/chat/completions", method="POST", payload=payload)
+        self.assertEqual(code, 403)
         self.assertIn("error", data)
         self.assertEqual(data["error"]["code"], "jog_blocked_force_rewrite")
         self.assertIn("JOG GUARDRAIL CHẶN TỰ ĐỘNG", data["error"]["message"])
@@ -73,9 +87,8 @@ class TestLocalProxy(unittest.TestCase):
                 }
             ]
         }
-        resp = requests.post(f"{self.base_url}/v1/messages", json=payload, timeout=2)
-        self.assertEqual(resp.status_code, 403)
-        data = resp.json()
+        code, data = _http_req(f"{self.base_url}/v1/messages", method="POST", payload=payload)
+        self.assertEqual(code, 403)
         diag = data["error"]["diagnostics"]
         self.assertEqual(diag["architecture_flaw_type"], "dependency_or_security_flaw")
         self.assertIn("remediations", diag)
@@ -91,9 +104,8 @@ class TestLocalProxy(unittest.TestCase):
                 }
             ]
         }
-        resp = requests.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=2)
-        self.assertEqual(resp.status_code, 403)
-        data = resp.json()
+        code, data = _http_req(f"{self.base_url}/v1/chat/completions", method="POST", payload=payload)
+        self.assertEqual(code, 403)
         self.assertEqual(data["error"]["code"], "jog_blocked_force_rewrite")
 
     def test_allow_safe_request(self):
@@ -104,9 +116,8 @@ class TestLocalProxy(unittest.TestCase):
                 {"role": "user", "content": "Hãy giải thích nguyên lý hoạt động của kiến trúc Transformer."}
             ]
         }
-        resp = requests.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=2)
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
+        code, data = _http_req(f"{self.base_url}/v1/chat/completions", method="POST", payload=payload)
+        self.assertEqual(code, 200)
         self.assertEqual(data.get("status"), "success")
 
     def test_proxy_injects_architecture_advisory(self):
@@ -117,9 +128,8 @@ class TestLocalProxy(unittest.TestCase):
                 {"role": "user", "content": "Hãy thêm tính năng realtime notifications cho hệ thống"}
             ]
         }
-        resp = requests.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=2)
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
+        code, data = _http_req(f"{self.base_url}/v1/chat/completions", method="POST", payload=payload)
+        self.assertEqual(code, 200)
         injected = data.get("injected_payload", {})
         msgs = injected.get("messages", [])
         self.assertGreaterEqual(len(msgs), 2)

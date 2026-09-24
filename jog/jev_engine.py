@@ -19,10 +19,8 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 
-try:
-    import requests
-except ImportError:
-    requests = None
+import urllib.request
+import urllib.error
 
 from jog.config import JogConfig, load_config
 from jog.logger import get_logger
@@ -522,19 +520,22 @@ class JevEngine:
                 "response_format": {"type": "json_object"}
             }
             try:
-                resp = requests.post(url, headers=headers, json=payload, timeout=self.config.api.timeout_seconds)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    content = data["choices"][0]["message"]["content"]
-                    parsed = json.loads(content)
-                    return PromptCheckResult(
-                        has_credential_leak=bool(parsed.get("has_credential_leak", False)),
-                        destructive_intent_score=float(parsed.get("destructive_intent_score", 1.0)),
-                        action_verdict=str(parsed.get("action_verdict", "allow")),
-                        details=parsed.get("details", []),
-                        remediation=parsed.get("remediation"),
-                        engine_source="openrouter_cloud"
-                    )
+                body_data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(url, data=body_data, headers=headers, method="POST")
+                with urllib.request.urlopen(req, timeout=self.config.api.timeout_seconds) as resp:
+                    if resp.status == 200:
+                        content_str = resp.read().decode("utf-8")
+                        data = json.loads(content_str)
+                        content = data["choices"][0]["message"]["content"]
+                        parsed = json.loads(content)
+                        return PromptCheckResult(
+                            has_credential_leak=bool(parsed.get("has_credential_leak", False)),
+                            destructive_intent_score=float(parsed.get("destructive_intent_score", 1.0)),
+                            action_verdict=str(parsed.get("action_verdict", "allow")),
+                            details=parsed.get("details", []),
+                            remediation=parsed.get("remediation"),
+                            engine_source="openrouter_cloud"
+                        )
             except Exception:
                 pass
             return None
@@ -553,22 +554,20 @@ class JevEngine:
             "context": context or {},
         }
         try:
-            resp = requests.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self.config.api.timeout_seconds
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                return PromptCheckResult(
-                    has_credential_leak=bool(data.get("has_credential_leak", False)),
-                    destructive_intent_score=float(data.get("destructive_intent_score", 1.0)),
-                    action_verdict=str(data.get("action_verdict", "allow")),
-                    details=data.get("details", []),
-                    remediation=data.get("remediation"),
-                    engine_source="typesafe_cloud"
-                )
+            body_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=body_data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=self.config.api.timeout_seconds) as resp:
+                if resp.status == 200:
+                    content_str = resp.read().decode("utf-8")
+                    data = json.loads(content_str)
+                    return PromptCheckResult(
+                        has_credential_leak=bool(data.get("has_credential_leak", False)),
+                        destructive_intent_score=float(data.get("destructive_intent_score", 1.0)),
+                        action_verdict=str(data.get("action_verdict", "allow")),
+                        details=data.get("details", []),
+                        remediation=data.get("remediation"),
+                        engine_source="typesafe_cloud"
+                    )
         except Exception:
             pass
         return None
@@ -595,24 +594,22 @@ class JevEngine:
             "context": context or {},
         }
         try:
-            resp = requests.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self.config.api.timeout_seconds
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                return CodeCheckResult(
-                    future_security_risk=bool(data.get("future_security_risk", False)),
-                    production_stability_score=float(data.get("production_stability_score", 1.0)),
-                    architecture_flaw_type=str(data.get("architecture_flaw_type", "clean_and_safe")),
-                    maintainability_verdict=str(data.get("maintainability_verdict", "pass")),
-                    leak_risk=float(data.get("leak_risk", 0.0)),
-                    detected_flaws=data.get("detected_flaws", []),
-                    remediation_suggestions=data.get("remediation_suggestions", []),
-                    engine_source="typesafe_cloud"
-                )
+            body_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=body_data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=self.config.api.timeout_seconds) as resp:
+                if resp.status == 200:
+                    content_str = resp.read().decode("utf-8")
+                    data = json.loads(content_str)
+                    return CodeCheckResult(
+                        future_security_risk=bool(data.get("future_security_risk", False)),
+                        production_stability_score=float(data.get("production_stability_score", 1.0)),
+                        architecture_flaw_type=str(data.get("architecture_flaw_type", "clean_and_safe")),
+                        maintainability_verdict=str(data.get("maintainability_verdict", "pass")),
+                        leak_risk=float(data.get("leak_risk", 0.0)),
+                        detected_flaws=data.get("detected_flaws", []),
+                        remediation_suggestions=data.get("remediation_suggestions", []),
+                        engine_source="typesafe_cloud"
+                    )
         except Exception:
             pass
         return None

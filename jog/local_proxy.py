@@ -26,10 +26,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from typing import Dict, Any, Optional, Tuple, List
 
-try:
-    import requests
-except ImportError:
-    requests = None
+import urllib.request
+import urllib.error
 
 from jog.config import JogConfig, load_config
 from jog.logger import JogLogger, get_logger
@@ -339,29 +337,30 @@ class JogProxyHandler(BaseHTTPRequestHandler):
                 forward_headers[k] = v
 
         try:
-            # Gửi request sang upstream server
-            upstream_resp = requests.post(
-                upstream_url,
-                data=body_bytes,
-                headers=forward_headers,
-                stream=True,
-                timeout=30.0
-            )
+            req = urllib.request.Request(upstream_url, data=body_bytes, headers=forward_headers, method="POST")
+            with urllib.request.urlopen(req, timeout=30.0) as upstream_resp:
+                self.send_response(upstream_resp.status)
+                for hk, hv in upstream_resp.getheaders():
+                    if hk.lower() not in ["transfer-encoding", "content-encoding", "content-length"]:
+                        self.send_header(hk, hv)
+                self.end_headers()
 
-            # Trả status code và headers về IDE
-            self.send_response(upstream_resp.status_code)
-            for hk, hv in upstream_resp.headers.items():
-                if hk.lower() not in ["transfer-encoding", "content-encoding", "content-length"]:
-                    self.send_header(hk, hv)
-            self.end_headers()
-
-            # Stream dữ liệu phản hồi từng chunk về IDE
-            for chunk in upstream_resp.iter_content(chunk_size=4096):
-                if chunk:
+                while True:
+                    chunk = upstream_resp.read(4096)
+                    if not chunk:
+                        break
                     self.wfile.write(chunk)
                     self.wfile.flush()
 
-        except requests.exceptions.RequestException as e:
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            for hk, hv in e.headers.items():
+                if hk.lower() not in ["transfer-encoding", "content-encoding", "content-length"]:
+                    self.send_header(hk, hv)
+            self.end_headers()
+            self.wfile.write(e.read())
+
+        except Exception as e:
             self._send_json_response(502, {
                 "error": {
                     "message": f"JOG Proxy không thể kết nối tới Upstream ({upstream_url}): {str(e)}",
