@@ -29,9 +29,9 @@
      ```bash
      cp .env.example .env
      ```
-   - Dán API Key vừa lấy vào file `.env`:
+   - Lấy key theo hướng dẫn ở bước 1 và điền vào file `.env`:
      ```env
-     OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+     OPENROUTER_API_KEY=<lấy_key_theo_hướng_dẫn_ở_bước_1>
      ```
    *(🔒 **Bảo mật:** File `.env` chứa key bí mật đã được cấu hình trong `.gitignore`, Git sẽ tự động bỏ qua và không đọc/commit file này).*
 
