@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -51,7 +52,8 @@ class JogLogger:
         raw_snippet: Optional[str] = None
     ) -> None:
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_id": str(uuid.uuid4())[:8],
+            "timestamp": datetime.now().astimezone().isoformat(),
             "event_type": event_type,
             "channel": channel,
             "verdict": verdict,

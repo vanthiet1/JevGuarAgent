@@ -19,6 +19,7 @@ if sys.platform == "win32":
 import argparse
 import json
 import time
+from datetime import datetime
 import threading
 from jog.config import load_config
 from jog.logger import JogLogger, get_logger
@@ -655,6 +656,18 @@ def cmd_deactivate(args):
 
     print("✓ Đã hủy kích hoạt JOG thành công.\n")
 
+def _format_local_time(ts: str) -> str:
+    if not ts:
+        return ""
+    try:
+        clean_ts = ts.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(clean_ts)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone()
+        return dt.strftime("%H:%M:%S")
+    except Exception:
+        return ts.split("T")[-1][:8] if "T" in ts else ts[:8]
+
 def _print_monitor_event(entry: Dict[str, Any]):
     CYAN = "[36m"
     GREEN = "[32m"
@@ -666,7 +679,7 @@ def _print_monitor_event(entry: Dict[str, Any]):
     RESET = "[0m"
 
     ts = entry.get("timestamp", "")
-    time_str = ts.split("T")[-1][:8] if "T" in ts else ts[:8]
+    time_str = _format_local_time(ts)
     event_type = entry.get("event_type", "event")
     channel = entry.get("channel", "unknown")
     verdict = entry.get("verdict", "")
@@ -820,6 +833,7 @@ def cmd_watch(args):
         except Exception:
             file_offsets[wf] = 0
 
+    seen_event_keys = set()
     try:
         while True:
             found_data = False
@@ -842,6 +856,13 @@ def cmd_watch(args):
                                 if nl.strip():
                                     try:
                                         entry = json.loads(nl.strip())
+                                        event_key = entry.get("event_id") or f"{entry.get('timestamp')}_{entry.get('pid')}_{entry.get('verdict')}_{entry.get('snippet_preview')}"
+                                        if event_key in seen_event_keys:
+                                            continue
+                                        seen_event_keys.add(event_key)
+                                        if len(seen_event_keys) > 5000:
+                                            seen_event_keys.clear()
+
                                         _print_monitor_event(entry)
                                         sys.stdout.flush()
                                     except Exception:
@@ -914,7 +935,7 @@ def cmd_audit(args):
     for line in lines[-limit:]:
         try:
             entry = json.loads(line)
-            ts = entry.get("timestamp", "")
+            ts = _format_local_time(entry.get("timestamp", ""))
             ch = entry.get("channel", "")
             vd = entry.get("verdict", "")
             score = entry.get("risk_score", "")
